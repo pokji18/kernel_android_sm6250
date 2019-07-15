@@ -637,7 +637,7 @@ static void async_resume_noirq(void *data, async_cookie_t cookie)
 	put_device(dev);
 }
 
-void dpm_noirq_resume_devices(pm_message_t state)
+static void dpm_noirq_resume_devices(pm_message_t state)
 {
 	struct device *dev;
 	ktime_t starttime = ktime_get();
@@ -686,12 +686,6 @@ void dpm_noirq_resume_devices(pm_message_t state)
 	trace_suspend_resume(TPS("dpm_resume_noirq"), state.event, false);
 }
 
-void dpm_noirq_end(void)
-{
-	resume_device_irqs();
-	device_wakeup_disarm_wake_irqs();
-}
-
 /**
  * dpm_resume_noirq - Execute "noirq resume" callbacks for all devices.
  * @state: PM transition of the system being carried out.
@@ -702,7 +696,11 @@ void dpm_noirq_end(void)
 void dpm_resume_noirq(pm_message_t state)
 {
 	dpm_noirq_resume_devices(state);
-	dpm_noirq_end();
+
+	resume_device_irqs();
+	device_wakeup_disarm_wake_irqs();
+
+	cpuidle_resume();
 }
 
 /**
@@ -1203,36 +1201,29 @@ static void async_suspend_noirq(void *data, async_cookie_t cookie)
 
 static int device_suspend_noirq(struct device *dev)
 {
-	reinit_completion(&dev->power.completion);
+        reinit_completion(&dev->power.completion);
 
-	if (is_async(dev)) {
-		get_device(dev);
-		async_schedule(async_suspend_noirq, dev);
-		return 0;
-	}
-	return __device_suspend_noirq(dev, pm_transition, false);
+        if (is_async(dev)) {
+                get_device(dev);
+                async_schedule(async_suspend_noirq, dev);
+                return 0;
+        }
+        return __device_suspend_noirq(dev, pm_transition, false);
 }
 
-void dpm_noirq_begin(void)
+static int dpm_noirq_suspend_devices(pm_message_t state)
 {
-	device_wakeup_arm_wake_irqs();
-	suspend_device_irqs();
-}
+        ktime_t starttime = ktime_get();
+        int error = 0;
 
-int dpm_noirq_suspend_devices(pm_message_t state)
-{
-	ktime_t starttime = ktime_get();
-	int error = 0;
+        trace_suspend_resume(TPS("dpm_suspend_noirq"), state.event, true);
+        mutex_lock(&dpm_list_mtx);
+        pm_transition = state;
+        async_error = 0;
 
-	trace_suspend_resume(TPS("dpm_suspend_noirq"), state.event, true);
-	mutex_lock(&dpm_list_mtx);
-	pm_transition = state;
-	async_error = 0;
-
-	while (!list_empty(&dpm_late_early_list)) {
-		struct device *dev = to_device(dpm_late_early_list.prev);
-
-		get_device(dev);
+        while (!list_empty(&dpm_late_early_list)) {
+                struct device *dev = to_device(dpm_late_early_list.prev);
+                get_device(dev);
 		mutex_unlock(&dpm_list_mtx);
 
 		error = device_suspend_noirq(dev);
@@ -1276,7 +1267,11 @@ int dpm_suspend_noirq(pm_message_t state)
 {
 	int ret;
 
-	dpm_noirq_begin();
+	cpuidle_pause();
+
+	device_wakeup_arm_wake_irqs();
+	suspend_device_irqs();
+
 	ret = dpm_noirq_suspend_devices(state);
 	if (ret)
 		dpm_resume_noirq(resume_event(state));
