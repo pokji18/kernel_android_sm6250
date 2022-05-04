@@ -124,39 +124,39 @@ static int try_to_freeze_tasks(bool user_only)
  */
 int freeze_processes(void)
 {
-	int error;
+        int error;
 
-	error = __usermodehelper_disable(UMH_FREEZING);
-	if (error)
-		return error;
+        error = __usermodehelper_disable(UMH_FREEZING);
+        if (error)
+                return error;
 
-	/* Make sure this task doesn't get frozen */
-	current->flags |= PF_SUSPEND_TASK;
+        /* Make sure this task doesn't get frozen */
+        current->flags |= PF_SUSPEND_TASK;
 
-	if (!pm_freezing)
-		atomic_inc(&system_freezing_cnt);
+        if (!pm_freezing)
+                atomic_inc(&system_freezing_cnt);
 
-	pr_info("Freezing user space processes ... ");
-	pm_freezing = true;
-	error = try_to_freeze_tasks(true);
-	if (!error) {
-		__usermodehelper_set_disable_depth(UMH_DISABLED);
-		pr_cont("done.");
-	}
-	pr_cont("\n");
-	BUG_ON(in_atomic());
+        pr_info("Freezing user space processes ... ");
+        pm_freezing = true;
+        error = try_to_freeze_tasks(true);
+        if (!error) {
+                __usermodehelper_set_disable_depth(UMH_DISABLED);
+                pr_cont("done.");
+        }
+        pr_cont("\n");
+        BUG_ON(in_atomic());
 
-	/*
-	 * Now that the whole userspace is frozen we need to disbale
-	 * the OOM killer to disallow any further interference with
-	 * killable tasks. There is no guarantee oom victims will
-	 * ever reach a point they go away we have to wait with a timeout.
-	 */
-	if (!error && !oom_killer_disable(msecs_to_jiffies(freeze_timeout_msecs)))
-		error = -EBUSY;
+        /*
+         * Now that the whole userspace is frozen we need to disbale
+         * the OOM killer to disallow any further interference with
+         * killable tasks. There is no guarantee oom victims will
+         * ever reach a point they go away we have to wait with a timeout.
+         */
+        if (!error && !oom_killer_disable(msecs_to_jiffies(freeze_timeout_msecs)))
+                error = -EBUSY;
 
-	if (error)
-		thaw_processes();
+        if (error)
+                thaw_processes();
 	return error;
 }
 
