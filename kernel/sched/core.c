@@ -6135,7 +6135,7 @@ int cpuset_cpumask_can_shrink(const struct cpumask *cur,
 }
 
 int task_can_attach(struct task_struct *p,
-		    const struct cpumask *cs_cpus_allowed)
+		    const struct cpumask *cs_effective_cpus)
 {
 	int ret = 0;
 
@@ -6148,17 +6148,18 @@ int task_can_attach(struct task_struct *p,
 	 * success of set_cpus_allowed_ptr() on all attached tasks
 	 * before cpus_allowed may be changed.
 	 */
-	if (p->flags & PF_NO_SETAFFINITY) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	if (dl_task(p) && !cpumask_intersects(task_rq(p)->rd->span,
-					      cs_cpus_allowed))
-		ret = dl_task_can_attach(p, cs_cpus_allowed);
+                                              cs_cpus_allowed)) {
+                int cpu = cpumask_any_and(cpu_active_mask, cs_cpus_allowed);
+
+                if (unlikely(cpu >= nr_cpu_ids))
+                        return -EINVAL;
+
+                ret = dl_task_can_attach(p, cs_cpus_allowed);
+        }
 
 out:
-	return ret;
+        return ret;
 }
 
 bool sched_smp_initialized __read_mostly;
@@ -6167,7 +6168,7 @@ bool sched_smp_initialized __read_mostly;
 /* Migrate current task p to target_cpu */
 int migrate_task_to(struct task_struct *p, int target_cpu)
 {
-	struct migration_arg arg = { p, target_cpu };
+        struct migration_arg arg = { p, target_cpu };
 	int curr_cpu = task_cpu(p);
 
 	if (curr_cpu == target_cpu)
