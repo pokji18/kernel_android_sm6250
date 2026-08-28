@@ -59,7 +59,7 @@ jobs:
           echo "Downloading FoxeClang..."
           curl -Lo foxe-clang.tar.zst \
             "https://github.com/Michikoextv2/FoxeClang/releases/download/v24.0-20260822/FoxeClang-24.0-20260822.tar.zst"
-          tar -I zstd -xf foxe-clang.tar.zst -C "$CLANG_DIR"
+          tar --zstd -xf foxe-clang.tar.zst -C "$CLANG_DIR" --strip-components=1
           rm -f foxe-clang.tar.zst
           echo "FoxeClang bin contents:"
           ls "$CLANG_DIR/bin/" | head -10
