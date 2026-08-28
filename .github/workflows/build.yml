@@ -23,7 +23,7 @@ jobs:
       KBUILD_BUILD_USER: xyz
       USE_CCACHE: 1
       CCACHE_DIR: ${{ github.workspace }}/.ccache
-      CLANG_DIR: ${{ github.workspace }}/foxe-clang
+      CLANG_DIR: ${{ github.workspace }}/foxe-clang/install
       GCC32_DIR: ${{ github.workspace }}/fox-gcc32
       AK3_DIR: ${{ github.workspace }}/AnyKernel3
       KERNEL_DIR: ${{ github.workspace }}
