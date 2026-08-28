@@ -64,6 +64,14 @@ jobs:
           echo "FoxeClang bin contents:"
           ls "$CLANG_DIR/bin/" | head -10
 
+      - name: Debug FoxeClang structure
+        run: |
+          echo "=== Root foxe-clang ==="
+          find "${{ github.workspace }}/foxe-clang" -maxdepth 4 -type d
+          echo ""
+          echo "=== Looking for clang binary ==="
+          find "${{ github.workspace }}/foxe-clang" -name "clang" -type f 2>/dev/null
+
       # -------------------------------------------------------
       # Toolchain cache — FoxGCC ARM32
       # -------------------------------------------------------
