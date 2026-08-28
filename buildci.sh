@@ -12,7 +12,7 @@ set -euo pipefail
 # -------------------------------------------------------
 KERNEL_DIR="$(pwd)"
 OUT_DIR="$KERNEL_DIR/out"
-CLANG_DIR="${CLANG_DIR:-$KERNEL_DIR/../foxe-clang}"
+CLANG_DIR="${CLANG_DIR:-$KERNEL_DIR/../foxe-clang/install}"
 GCC32_DIR="${GCC32_DIR:-$KERNEL_DIR/../fox-gcc32}"
 BUILD_LOG="$KERNEL_DIR/build.log"
 
