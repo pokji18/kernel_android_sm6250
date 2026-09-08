@@ -16,6 +16,9 @@
 
 #include <linux/stddef.h>
 #include <linux/mm.h>
+#include <linux/cpu_input_boost.h>
+#include <linux/devfreq.h>
+#include <linux/msm_devfreq.h>
 #include <linux/swap.h>
 #include <linux/interrupt.h>
 #include <linux/pagemap.h>
