@@ -1519,7 +1519,7 @@ config MEMBARRIER
 config CHECKPOINT_RESTORE
 	bool "Checkpoint/restore support" if EXPERT
 	select PROC_CHILDREN
-	default n
+	default y
 	help
 	  Enables additional kernel features in a sake of checkpoint/restore.
 	  In particular it adds auxiliary prctl codes to setup process text,
