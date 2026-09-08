@@ -59,8 +59,8 @@ export PATH="$CLANG_DIR/bin:$GCC32_DIR/bin:$PATH"
 
 # Set environment variables
 	export USE_CCACHE=1
-	export KBUILD_BUILD_HOST=xyz
-	export KBUILD_BUILD_USER=prindapan
+	export KBUILD_BUILD_HOST=Kimochii
+	export KBUILD_BUILD_USER=Nezuko
 	
 # 🔍 Auto detect defconfig
 CONFIG_PATH="$KERNEL_DIR/arch/arm64/configs/vendor/xiaomi"
