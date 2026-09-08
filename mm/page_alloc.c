@@ -16,9 +16,6 @@
 
 #include <linux/stddef.h>
 #include <linux/mm.h>
-#include <linux/cpu_input_boost.h>
-#include <linux/devfreq.h>
-#include <linux/msm_devfreq.h>
 #include <linux/swap.h>
 #include <linux/interrupt.h>
 #include <linux/pagemap.h>
@@ -4293,9 +4290,6 @@ retry:
 		goto nopage;
 
 	/* Boost when memory is low so allocation latency doesn't get too bad */
-	cpu_input_boost_kick_max(150);
-	devfreq_boost_kick_max(DEVFREQ_MSM_LLCCBW, 150);
-	devfreq_boost_kick_max(DEVFREQ_MSM_CPUBW, 150);
 
 	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
 				 did_some_progress > 0, &no_progress_loops))
