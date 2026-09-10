@@ -112,13 +112,11 @@ static void s2idle_enter(void)
 
 static void s2idle_loop(void)
 {
-	pm_pr_dbg("suspend-to-idle\n");
+        pm_pr_dbg("suspend-to-idle\n");
 
-	for (;;) {
+        for (;;) {
 		int error;
 		bool leave_s2idle = false;
-
-		dpm_noirq_begin();
 
 		/*
 		 * Suspend-to-idle equals
@@ -129,7 +127,7 @@ static void s2idle_loop(void)
 		 * Wakeups during the noirq suspend of devices may be spurious,
 		 * so prevent them from terminating the loop right away.
 		 */
-		error = dpm_noirq_suspend_devices(PMSG_SUSPEND);
+		error = dpm_suspend_noirq(PMSG_SUSPEND);
 		if (!error) {
 			s2idle_enter();
 			/*
@@ -155,9 +153,7 @@ static void s2idle_loop(void)
 		if (!error && s2idle_ops && s2idle_ops->wake)
 			s2idle_ops->wake();
 
-		dpm_noirq_resume_devices(PMSG_RESUME);
-
-		dpm_noirq_end();
+		dpm_resume_noirq(PMSG_RESUME);
 
 		if (error)
 			break;

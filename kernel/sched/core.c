@@ -6135,27 +6135,32 @@ int cpuset_cpumask_can_shrink(const struct cpumask *cur,
 }
 
 int task_can_attach(struct task_struct *p,
-		    const struct cpumask *cs_effective_cpus)
+                    const struct cpumask *cs_effective_cpus)
 {
-	int ret = 0;
+        int ret = 0;
 
-	/*
-	 * Kthreads which disallow setaffinity shouldn't be moved
-	 * to a new cpuset; we don't want to change their CPU
-	 * affinity and isolating such threads by their set of
-	 * allowed nodes is unnecessary.  Thus, cpusets are not
-	 * applicable for such threads.  This prevents checking for
-	 * success of set_cpus_allowed_ptr() on all attached tasks
-	 * before cpus_allowed may be changed.
-	 */
-	if (dl_task(p) && !cpumask_intersects(task_rq(p)->rd->span,
-                                              cs_cpus_allowed)) {
-                int cpu = cpumask_any_and(cpu_active_mask, cs_cpus_allowed);
+        /*
+         * Kthreads which disallow setaffinity shouldn't be moved
+         * to a new cpuset; we don't want to change their CPU
+         * affinity and isolating such threads by their set of
+         * allowed nodes is unnecessary.  Thus, cpusets are not
+         * applicable for such threads.  This prevents checking for
+         * success of set_cpus_allowed_ptr() on all attached tasks
+         * before cpus_allowed may be changed.
+         */
+        if (p->flags & PF_NO_SETAFFINITY) {
+                ret = -EINVAL;
+                goto out;
+        }
+
+        if (dl_task(p) && !cpumask_intersects(task_rq(p)->rd->span,
+                                              cs_effective_cpus)) {
+                int cpu = cpumask_any_and(cpu_active_mask, cs_effective_cpus);
 
                 if (unlikely(cpu >= nr_cpu_ids))
                         return -EINVAL;
 
-                ret = dl_task_can_attach(p, cs_cpus_allowed);
+                ret = dl_task_can_attach(p, cs_effective_cpus);
         }
 
 out:

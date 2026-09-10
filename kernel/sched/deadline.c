@@ -479,7 +479,7 @@ static void dequeue_pushable_dl_task(struct rq *rq, struct task_struct *p)
 	if (RB_EMPTY_NODE(&p->pushable_dl_tasks))
 		return;
 
-	leftmost = rb_erase_cached(&p->pushable_dl_tasks, root);
+	rb_erase_cached(&p->pushable_dl_tasks, root);
 	if (leftmost)
 		dl_rq->earliest_dl.next = __node_2_pdl(leftmost)->dl.deadline;
 
