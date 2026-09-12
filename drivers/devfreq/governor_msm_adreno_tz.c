@@ -22,6 +22,7 @@
 #include <linux/msm_adreno_devfreq.h>
 #include <asm/cacheflush.h>
 #include <soc/qcom/scm.h>
+#include "adreno_idler.h"
 #include "governor.h"
 
 static DEFINE_SPINLOCK(tz_lock);
@@ -360,6 +361,19 @@ static int tz_get_target_freq(struct devfreq *devfreq, unsigned long *freq)
 
 	/* Update the GPU load statistics */
 	compute_work_load(&stats, priv, devfreq);
+
+	/*
+	 * Adreno idler: a sustained idle period drops straight to the
+	 * lowest frequency instead of lingering on the current one.
+	 */
+	if (adreno_idler_idle(devfreq, stats.busy_time)) {
+		if (devfreq->profile->max_state > 0)
+			*freq = devfreq->profile->freq_table[devfreq->profile->max_state - 1];
+		priv->bin.total_time = 0;
+		priv->bin.busy_time = 0;
+		return 0;
+	}
+
 	/*
 	 * Do not waste CPU cycles running this algorithm if
 	 * the GPU just started, or if less than FLOOR time

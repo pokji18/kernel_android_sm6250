@@ -166,6 +166,19 @@ config DEVFREQ_GOV_QCOM_ADRENO_TZ
 	   governor is unlikely to be useful for other
 	   devices.
 
+config ADRENO_IDLER
+	bool "Adreno idler - force min GPU freq on sustained idle"
+	depends on DEVFREQ_GOV_QCOM_ADRENO_TZ
+	default y
+	help
+	  Drop the Adreno GPU straight to its lowest frequency after
+	  a sustained idle period instead of lingering on the current
+	  frequency. Any real load clears the idle state immediately.
+	  Controlled at runtime via the adreno_idler_active and
+	  adreno_idler_idlewait_ms parameters.
+
+	  If in doubt, say Y.
+
 config DEVFREQ_GOV_QCOM_GPUBW_MON
 	tristate "GPU BW voting governor"
 	depends on DEVFREQ_GOV_QCOM_ADRENO_TZ
