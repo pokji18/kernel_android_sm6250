@@ -177,8 +177,9 @@ config BOEFFLA_WL_BLOCKER
 	  Kernel-level wakelock blocker with a sysfs interface, to cut idle
 	  battery drain by suppressing chosen wakeup sources by name via
 	  /sys/devices/virtual/misc/boeffla_wakelock_blocker/wakelock_blocker.
-	  The block list is EMPTY by default, so enabling this changes nothing
-	  until user space adds wakelock names.
+	  Active automatically at boot when the default or user list is
+	  non-empty (sm6250 safe default: wlan scans + NETLINK only).
+	  Per-device offenders go in the runtime sysfs node instead.
 
 config PM
 	bool "Device power management core functionality"
