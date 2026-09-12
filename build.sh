@@ -3,7 +3,7 @@
 # 💫 MICHIKO Build Script — ULTIMATE HYBRID MODE FOR MIATOLL
 # 🔧 Dibuat oleh: Michikoextv2
 # 🧰 Toolchain: NezukoClang 23.1.1 + GCC ARM 32-bit
-# 📱 Device: Xiaomi Miatoll (tembakul/codename)
+# 📱 Device: Xiaomi Miatoll
 # 🎯 Output: Kernel Image + AnyKernel3 Zip Package
 # =====================================================================
 
@@ -37,9 +37,36 @@ if [ ! -f "$CLANG_DIR/bin/clang" ] && [ -f "$KERNEL_DIR/../NezukoClang/bin/clang
     CLANG_DIR="$KERNEL_DIR/../NezukoClang"
 fi
 
+# FIX: Buat symlink ld.gold jika belum ada (crash saat build VDSO)
+if [ ! -f "$CLANG_DIR/bin/aarch64-linux-gnu-ld.gold" ]; then
+    ln -sf "$CLANG_DIR/bin/ld.lld" "$CLANG_DIR/bin/aarch64-linux-gnu-ld.gold"
+    echo -e "${YELLOW}⚠️  Symlink ld.gold dibuat otomatis${RESET}"
+fi
+
 GCC32_DIR="$KERNEL_DIR/../arm-linux-androideabi-4.9"
 
-# 📊 Info Sistem
+# Pastikan GCC32 tersedia
+if [ ! -d "$GCC32_DIR/bin" ]; then
+    for sp in "$CLANG_DIR/arm-linux-androideabi-4.9" \
+              "/serverhive1/nezuko330/clang/NezukoClang/arm-linux-androideabi-4.9" \
+              "/tmp/nezuko-pubtest/NezukoClang/arm-linux-androideabi-4.9" \
+              "$KERNEL_DIR/../arm-linux-androideabi-4.9"; do
+        if [ -d "$sp/bin" ] && [ -x "$sp/bin/arm-linux-androideabi-gcc" ]; then
+            GCC32_DIR="$sp"
+            echo -e "${GREEN}✅ GCC32 ditemukan: $GCC32_DIR${RESET}"
+            break
+        fi
+    done
+    if [ -z "$GCC32_DIR" ]; then
+        echo -e "${RED}❌ GCC32 tidak ditemukan. Konfig COMPAT akan dimatikan.${RESET}"
+        GCC32_DIR=""
+    fi
+fi
+
+# Export PATH — CLANG DIR PAKAI PERTAMA
+export PATH="$CLANG_DIR/bin:$GCC32_DIR/bin:$PATH"
+
+# 🧠 Info Sistem
 CPU_CORES=$(nproc --all)
 HOST_OS=$(uname -o)
 HOST_KERNEL=$(uname -r)
@@ -84,7 +111,6 @@ if [ ! -d "$GCC32_DIR/bin" ]; then
     exit 1
 fi
 
-export PATH="$CLANG_DIR/bin:$GCC32_DIR/bin:$PATH"
 echo -e "${GREEN}✅ Toolchain Aktif:${RESET} $TOOLCHAIN_VERSION + GCC32 cross-compile\n"
 
 # =====================================================================
@@ -97,7 +123,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# 🔧 Aktifkan fitur krusial untuk ROM Android & Matrix Level 7
+# 🔧 Aktifkan fitur krusial SETELAH defconfig
 echo -e "${CYAN}🔧 Memasang konfigurasi krusial...${RESET}"
 # CFI Clang
 echo "CONFIG_CFI_CLANG=y" >> "$OUT_DIR/.config"
@@ -120,7 +146,12 @@ echo "CONFIG_PLAYSTATION_FF=y" >> "$OUT_DIR/.config"
 echo "CONFIG_AS_IS_LLVM=y" >> "$OUT_DIR/.config"
 echo "CONFIG_CC_IS_CLANG=y" >> "$OUT_DIR/.config"
 
-echo -e "${GREEN}✅ Konfigurasi selesai${RESET}\n"
+# ✅ Jalankan olddefconfig SETELA menambah config (bukan sebelum)
+echo -e "${CYAN}✅ Menjalankan olddefconfig...${RESET}"
+yes '' | make O="$OUT_DIR" ARCH="$ARCH" olddefconfig 2>&1 | tee -a "$BUILD_LOG"
+
+# Lancar langsung ke build - jangan jalankan silentoldconfig lagi
+# karena sudah dijalankan olddefconfig di atas dan config sudah tepat
 
 # =====================================================================
 # ⏱️ TIMER MULAI
@@ -162,7 +193,9 @@ echo -e "${GREEN}✅ Build kernel SUCCESS!${RESET}"
 echo -e "${YELLOW}📦 Output Image:${RESET} ${BLUE}${IMAGE}${RESET}"
 
 KERNEL_RELEASE=$(make -s O="$OUT_DIR" ARCH="$ARCH" kernelrelease 2>/dev/null || true)
-echo -e "${YELLOW}🔖 Kernel Release:${RESET} ${GREEN}${KERNEL_RELEASE}${RESET}"
+if [ -n "$KERNEL_RELEASE" ]; then
+    echo -e "${YELLOW}🔖 Kernel release:${RESET} ${GREEN}${KERNEL_RELEASE}${RESET}"
+fi
 
 # =====================================================================
 # 📦 BUAT ANYKERNEL3 ZIP UNTUK MIATOLL
@@ -175,17 +208,17 @@ if [ ! -d "$AK3_DIR" ]; then
     git clone --depth 1 -b "$AK3_BRANCH" "$AK3_REPO" "$AK3_DIR" 2>&1 | tee -a "$BUILD_LOG"
 fi
 
-# Update AnyKernel3 supaya selalu fresh
+# Update AnyKernel3
 git -C "$AK3_DIR" fetch --depth 1 origin "$AK3_BRANCH" 2>&1 | tee -a "$BUILD_LOG"
 git -C "$AK3_DIR" checkout "$AK3_BRANCH" 2>&1 | tee -a "$BUILD_LOG"
 
-# Salin Image.gz ke AnyKernel3
-cp "$IMAGE" "$AK3_DIR/$DATE-img.gz-dtbo.img" 2>&1 | tee -a "$BUILD_LOG"
+# Salin Image ke AnyKernel3
+cp "$IMAGE" "$AK3_DIR/${DATE}-img.gz-dtbo.img" 2>&1 | tee -a "$BUILD_LOG"
 
-# Salin .config untuk debugging di ROM
+# Salin .config untuk debugging di recovery
 cp "$OUT_DIR/.config" "$AK3_DIR/.config" 2>&1 | tee -a "$BUILD_LOG"
 
-# Salin vmlinux jika ada (untuk debug symbol)
+# Salin vmlinux jika ada
 if [ -f "$OUT_DIR/vmlinux" ]; then
     cp "$OUT_DIR/vmlinux" "$AK3_DIR/vmlinux" 2>&1 | tee -a "$BUILD_LOG"
 fi
@@ -198,7 +231,7 @@ fi
 # Buat zip menggunakan AnyKernel3 script
 echo -e "${CYAN}📦 Membuat zip package...${RESET}"
 cd "$AK3_DIR"
-ZIP_NAME="Millenia-Kernel-MIATOLL-$DATE.zip"
+ZIP_NAME="Millenia-Kernel-MIATOLL-${DATE}.zip"
 
 # Cek ada script zip di AnyKernel3
 if [ -f "$AK3_DIR/zip.sh" ]; then
@@ -218,9 +251,6 @@ echo -e "${YELLOW}📏 Ukuran Zip:${RESET} $(du -h "$ZIP_PATH" | cut -f1)"
 # =====================================================================
 # 📊 AKHIR BUILD & INSTRUKSI
 # =====================================================================
-BUILD_END=$(date +%s)
-BUILD_TIME=$((BUILD_END - BUILD_START))
-
 echo -e ""
 echo -e "${MAGENTA}${BOLD}================================================================${RESET}"
 echo -e " ${GREEN}✅ BUILD SELESAI UNTUK MIATOLL!${RESET}"
