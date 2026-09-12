@@ -16,7 +16,7 @@
 
 #define BOEFFLA_WL_BLOCKER_VERSION	"1.1.0"
 
-#define LIST_WL_DEFAULT			"qcom_rx_wakelock;wlan;wlan_wow_wl;wlan_extscan_wl;NETLINK"
+#define LIST_WL_DEFAULT			"wlan;wlan_wow_wl;wlan_extscan_wl;NETLINK"
 
 #define LENGTH_LIST_WL			1024
 #define LENGTH_LIST_WL_DEFAULT		1024
