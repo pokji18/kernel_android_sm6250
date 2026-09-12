@@ -325,6 +325,7 @@ config CPU_FREQ_GOV_BLU_SCHEDUTIL
 	depends on CPU_FREQ && SMP
 	select CPU_FREQ_GOV_ATTR_SET
 	select IRQ_WORK
+	default y
 	help
 	  Blu_schedutil is a schedutil-derived governor tuned for
 	  interactive responsiveness with a powersave bias. It shares
@@ -338,6 +339,7 @@ config CPU_FREQ_GOV_PWRUTILX
 	depends on CPU_FREQ && SMP
 	select CPU_FREQ_GOV_ATTR_SET
 	select IRQ_WORK
+	default y
 	help
 	  Pwrutilx is a schedutil-derived governor tuned for power
 	  efficiency. It shares schedutil's scheduler utilization
@@ -370,6 +372,7 @@ config CPU_FREQ_GOV_CONSERVATIVEX
 	tristate "'conservativex' cpufreq governor"
 	depends on CPU_FREQ
 	select CPU_FREQ_GOV_COMMON
+	default y
 	help
 	  'conservativex' - a snappier conservative variant. Like the
 	  'conservative' governor it steps the frequency gradually
@@ -386,6 +389,7 @@ config CPU_FREQ_GOV_SMARTMAX
 	tristate "'smartmax' cpufreq governor"
 	depends on CPU_FREQ
 	select CPU_FREQ_GOV_COMMON
+	default y
 	help
 	  'smartmax' - ramps up quickly toward an ideal frequency and
 	  steps down gradually. Tunables: ideal_freq, ramp_up_step and
@@ -401,6 +405,7 @@ config CPU_FREQ_GOV_DARKNESS
 	tristate "'darkness' cpufreq governor"
 	depends on CPU_FREQ
 	select CPU_FREQ_GOV_COMMON
+	default y
 	help
 	  'darkness' - jumps straight to max frequency on high load for
 	  minimum latency and steps down gradually otherwise, drifting
