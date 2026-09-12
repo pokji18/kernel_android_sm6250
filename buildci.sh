@@ -21,7 +21,7 @@ CLANG_DIR="${WORKSPACE}/clang"
 GCC64_DIR="${WORKSPACE}/aarch64-linux-android-4.9"
 GCC32_DIR="${WORKSPACE}/arm-linux-androideabi-4.9"
 ARCH="arm64"
-DEFCONFIG="surya_defconfig"
+DEFCONFIG="miatoll_defconfig"
 BUILD_LOG="${KERNEL_DIR}/build.log"
 DATE=$(TZ=Asia/Jakarta date +"%Y-%m-%d_%H-%M")
 
