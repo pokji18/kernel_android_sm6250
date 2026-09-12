@@ -1,256 +1,251 @@
 #!/bin/bash
 # =====================================================================
-# 💫 Build Script — HYBRID MODE
-# 🔧 Created by Michikoextv2
+# 💫 MICHIKO Build Script — ULTIMATE HYBRID MODE FOR MIATOLL
+# 🔧 Dibuat oleh: Michikoextv2
+# 🧰 Toolchain: NezukoClang 23.1.1 + GCC ARM 32-bit
+# 📱 Device: Xiaomi Miatoll (tembakul/codename)
+# 🎯 Output: Kernel Image + AnyKernel3 Zip Package
 # =====================================================================
 
-# 🎨 Warna
-RED='\033[1;31m'
-GREEN='\033[1;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;34m'
-CYAN='\033[1;36m'
-MAGENTA='\033[1;35m'
-RESET='\033[0m'
-BOLD='\033[1m'
+# =====================================================================
+# 🎨 WARNA & TAMPILAN
+# =====================================================================
+RED='\033[1;31m'; GREEN='\033[1;32m'; YELLOW='\033[1;33m'
+BLUE='\033[1;34m'; CYAN='\033[1;36m'; MAGENTA='\033[1;35m'
+RESET='\033[0m'; BOLD='\033[1m'
 
 # =====================================================================
-# 📂 Direktori & Variabel Utama
+# 📂 DIREKTORI & VARIABEL UTAMA
 # =====================================================================
 KERNEL_DIR="$(pwd)"
 OUT_DIR="$KERNEL_DIR/out"
-CLANG_DIR="$(realpath "$KERNEL_DIR/../clang/install")"
-GCC32_DIR="$(realpath "$KERNEL_DIR/../gcc32/gcc-arm")"
-AK3_REPO="https://github.com/Michikoextv2/AnyKernel3-miatoll.git"
-AK3_BRANCH="miatoll"
-AK3_DIR="$KERNEL_DIR/AnyKernel3"
 ARCH="arm64"
 BUILD_LOG="$KERNEL_DIR/build.log"
 DATE="$(date +"%Y-%m-%d_%H-%M")"
 
-# =====================================================================
-# 🧠 Info Sistem
-# =====================================================================
+# 📦 AnyKernel3 Setup untuk miatoll
+AK3_REPO="https://github.com/Michikoextv2/AnyKernel3-miatoll.git"
+AK3_BRANCH="miatoll"
+AK3_DIR="$KERNEL_DIR/AnyKernel3"
+
+# 🧰 Toolchain Detection (Auto-detect NezukoClang)
+CLANG_DIR="${CLANG_DIR:-$KERNEL_DIR/../clang}"
+if [ ! -f "$CLANG_DIR/bin/clang" ] && [ -f "$CLANG_DIR/NezukoClang/bin/clang" ]; then
+    CLANG_DIR="$CLANG_DIR/NezukoClang"
+fi
+if [ ! -f "$CLANG_DIR/bin/clang" ] && [ -f "$KERNEL_DIR/../NezukoClang/bin/clang" ]; then
+    CLANG_DIR="$KERNEL_DIR/../NezukoClang"
+fi
+
+GCC32_DIR="$KERNEL_DIR/../arm-linux-androideabi-4.9"
+
+# 📊 Info Sistem
 CPU_CORES=$(nproc --all)
 HOST_OS=$(uname -o)
 HOST_KERNEL=$(uname -r)
 HOST_CPU=$(grep -m1 "model name" /proc/cpuinfo | cut -d: -f2 | sed 's/^ //')
+TOOLCHAIN_VERSION=$("$CLANG_DIR/bin/clang" --version | head -n 1)
 
+# =====================================================================
+# 🖨️ TAMPILAN KELAS INTERNASAL
+# =====================================================================
 clear
-echo -e "${MAGENTA}${BOLD}=============================================================="
-echo -e "  💫 MICHIKO Build Script — FINAL HYBRID MODE"
-echo -e "==============================================================${RESET}"
+echo -e "${MAGENTA}${BOLD}================================================================${RESET}"
+echo -e " 💫 MICHIKO Build Script — ULTIMATE HYBRID MODE FOR MIATOLL"
+echo -e "================================================================${RESET}"
 echo -e "${CYAN}👤 Dibuat oleh   :${RESET} ${GREEN}Michikoextv2${RESET}"
 echo -e "${YELLOW}🧠 CPU           :${RESET} ${GREEN}${HOST_CPU}${RESET}"
 echo -e "${YELLOW}💻 Host          :${RESET} ${GREEN}${HOST_OS} (${HOST_KERNEL})${RESET}"
 echo -e "${YELLOW}🧵 CPU Cores     :${RESET} ${GREEN}${CPU_CORES}${RESET}"
-echo -e "${YELLOW}📄 Build Log     :${RESET} ${GREEN}${BUILD_LOG}${RESET}"
-echo -e "${MAGENTA}==============================================================${RESET}\n"
+echo -e "${YELLOW}🧰 Toolchain     :${RESET} ${GREEN}${TOOLCHAIN_VERSION}${RESET}"
+echo -e "${YELLOW}📱 Device       :${RESET} ${GREEN}miatoll${RESET}"
+echo -e "${MAGENTA}================================================================${RESET}"
+echo -e ""
+echo -e "${CYAN}📦 Proses: Generate Defconfig → Build Kernel → Buat Zip (AnyKernel3)${RESET}"
+echo -e ""
 
 # =====================================================================
-# 🔍 Cek Toolchain
+# 🔍 CEK TOOLCHAIN
 # =====================================================================
 if [ ! -f "$CLANG_DIR/bin/clang" ]; then
     echo -e "${RED}❌ Clang tidak ditemukan di: $CLANG_DIR${RESET}"
-    echo -e "${YELLOW}   Pastikan folder 'clang/install/' ada di direktori induk.${RESET}"
+    echo -e "${YELLOW}   Pastikan NezukoClang 23.1.1 sudah diekstrak di sini.${RESET}"
     exit 1
 fi
 
 if [ ! -f "$CLANG_DIR/bin/ld.lld" ]; then
-    echo -e "${YELLOW}⚠️  ld.lld tidak ditemukan di Clang, menggunakan system lld...${RESET}"
+    echo -e "${YELLOW}⚠️  ld.lld tidak ditemukan, menggunakan system lld.${RESET}"
     sudo apt install -y lld &>/dev/null
 fi
 
 if [ ! -d "$GCC32_DIR/bin" ]; then
-    echo -e "${RED}❌ GCC ARM32 tidak ditemukan di: $GCC32_DIR${RESET}"
-    echo -e "${YELLOW}   Pastikan folder 'gcc32/gcc-arm/bin/' ada dan berisi arm-eabi-*.${RESET}"
+    echo -e "${RED}❌ GCC32 (arm-linux-androideabi-4.9) tidak ditemukan${RESET}"
+    echo -e "${YELLOW}   Pastikan ada di $KERNEL_DIR/../arm-linux-androideabi-4.9${RESET}"
     exit 1
 fi
 
 export PATH="$CLANG_DIR/bin:$GCC32_DIR/bin:$PATH"
-CLANG_VERSION=$("$CLANG_DIR/bin/clang" --version | head -n 1)
-echo -e "${YELLOW}🧰 Toolchain     :${RESET} ${GREEN}${CLANG_VERSION}${RESET}\n"
+echo -e "${GREEN}✅ Toolchain Aktif:${RESET} $TOOLCHAIN_VERSION + GCC32 cross-compile\n"
 
 # =====================================================================
-# 🌿 Environment Variables
+# 🌿 GENERATE DEFCONFIG
 # =====================================================================
-export USE_CCACHE=1
-export KBUILD_BUILD_HOST="xyz"
-export KBUILD_BUILD_USER="standalone"
-
-# =====================================================================
-# 🔍 Auto Detect Defconfig — arch/arm64/configs/vendor/xiaomi/
-# =====================================================================
-CONFIG_VENDOR_PATH="$KERNEL_DIR/arch/arm64/configs/vendor/xiaomi"
-
-if [ ! -d "$CONFIG_VENDOR_PATH" ]; then
-    echo -e "${RED}❌ Folder vendor defconfig tidak ditemukan: $CONFIG_VENDOR_PATH${RESET}"
+echo -e "${CYAN}⚙️  Menghasilkan defconfig miatoll...${RESET}"
+make O="$OUT_DIR" ARCH="$ARCH" miatoll_defconfig 2>&1 | tee -a "$BUILD_LOG"
+if [ $? -ne 0 ]; then
+    echo -e "${RED}❌ Gagal generate defconfig!${RESET}"
     exit 1
 fi
 
-mapfile -t DEFCONFIGS < <(ls "$CONFIG_VENDOR_PATH" | grep -E "defconfig$")
+# 🔧 Aktifkan fitur krusial untuk ROM Android & Matrix Level 7
+echo -e "${CYAN}🔧 Memasang konfigurasi krusial...${RESET}"
+# CFI Clang
+echo "CONFIG_CFI_CLANG=y" >> "$OUT_DIR/.config"
+echo "CONFIG_CFI_PERMISSIVE=y" >> "$OUT_DIR/.config"
+echo "CONFIG_CFI_CLANG_SHADOW=y" >> "$OUT_DIR/.config"
+# LTO
+echo "CONFIG_LTO_CLANG=y" >> "$OUT_DIR/.config"
+# GCC32/COMPAT
+echo "CONFIG_COMPAT=y" >> "$OUT_DIR/.config"
+# HID & BPF untuk matrix level 7
+echo "CONFIG_HIDRAW=y" >> "$OUT_DIR/.config"
+echo "CONFIG_HID_PLAYSTATION=y" >> "$OUT_DIR/.config"
+echo "CONFIG_NET_ACT_BPF=y" >> "$OUT_DIR/.config"
+echo "CONFIG_NET_ACT_POLICE=y" >> "$OUT_DIR/.config"
+echo "CONFIG_NET_CLS_MATCHALL=y" >> "$OUT_DIR/.config"
+echo "CONFIG_NET_SCH_TBF=y" >> "$OUT_DIR/.config"
+echo "CONFIG_RD_LZ4=y" >> "$OUT_DIR/.config"
+echo "CONFIG_PLAYSTATION_FF=y" >> "$OUT_DIR/.config"
+#LLVM & Clang flags
+echo "CONFIG_AS_IS_LLVM=y" >> "$OUT_DIR/.config"
+echo "CONFIG_CC_IS_CLANG=y" >> "$OUT_DIR/.config"
 
-if [ ${#DEFCONFIGS[@]} -eq 0 ]; then
-    echo -e "${RED}❌ Tidak ada defconfig ditemukan di $CONFIG_VENDOR_PATH${RESET}"
-    exit 1
-elif [ ${#DEFCONFIGS[@]} -eq 1 ]; then
-    DEFCONFIG="vendor/xiaomi/${DEFCONFIGS[0]}"
-    echo -e "${GREEN}✅ Ditemukan satu defconfig: ${DEFCONFIG}${RESET}"
-else
-    echo -e "${YELLOW}📋 Pilih defconfig yang ingin digunakan:${RESET}"
-    select RAW_DEFCONFIG in "${DEFCONFIGS[@]}"; do
-        if [[ -n "$RAW_DEFCONFIG" ]]; then
-            DEFCONFIG="vendor/xiaomi/${RAW_DEFCONFIG}"
-            echo -e "${GREEN}✅ Menggunakan defconfig: $DEFCONFIG${RESET}"
-            break
-        else
-            echo -e "${RED}❌ Pilihan tidak valid, coba lagi.${RESET}"
-        fi
-    done
-fi
-
-# =====================================================================
-# 🗑️ Hapus AnyKernel3 Lama (jika ada)
-# =====================================================================
-if [ -d "$AK3_DIR" ]; then
-    echo -e "\n${YELLOW}🗑️  Menghapus AnyKernel3 lama...${RESET}"
-    rm -rf "$AK3_DIR"
-fi
+echo -e "${GREEN}✅ Konfigurasi selesai${RESET}\n"
 
 # =====================================================================
-# 🧹 Bersihkan Build Lama
-# =====================================================================
-echo -e "${CYAN}🧹 Membersihkan build lama...${RESET}"
-make -C "$KERNEL_DIR" O="$OUT_DIR" clean &>/dev/null
-rm -rf "$OUT_DIR"
-mkdir -p "$OUT_DIR"
-rm -f "$BUILD_LOG"
-
-# =====================================================================
-# ⚙️ Generate Defconfig
-# =====================================================================
-echo -e "${YELLOW}⚙️  Menghasilkan defconfig (${DEFCONFIG})...${RESET}"
-make -C "$KERNEL_DIR" O="$OUT_DIR" ARCH="$ARCH" "$DEFCONFIG" 2>&1 | tee -a "$BUILD_LOG"
-if [ ${PIPESTATUS[0]} -ne 0 ]; then
-    echo -e "${RED}❌ Gagal generate defconfig. Pastikan file '${DEFCONFIG}' ada.${RESET}"
-    exit 1
-fi
-
-# =====================================================================
-# 🧭 Menuconfig Opsional
-# =====================================================================
-read -rp "$(echo -e "${MAGENTA}🧭 Ingin buka menuconfig sebelum build? (y/n): ${RESET}")" menu
-[[ "$menu" =~ ^[Yy]$ ]] && make -C "$KERNEL_DIR" O="$OUT_DIR" ARCH="$ARCH" menuconfig
-
-# =====================================================================
-# 🔥 Pilih Level Optimasi Polly (FoxeClang)
-# =====================================================================
-echo -e "${YELLOW}🔥 Pilih level optimasi Polly:${RESET}"
-echo -e "  ${CYAN}1)${RESET} Tanpa Polly   — Build standar"
-echo -e "  ${CYAN}2)${RESET} Basic Polly   — Aman, rekomendasi daily build"
-echo -e "  ${CYAN}3)${RESET} Medium Polly  — Tambah vectorization"
-echo -e "  ${CYAN}4)${RESET} Full Polly    — Paling agresif, test dulu"
-read -rp "$(echo -e "${MAGENTA}Pilih (1-4) [default: 2]: ${RESET}")" polly_choice
-
-case "$polly_choice" in
-    1) KCFLAGS=""
-       echo -e "${GREEN}✅ Tanpa Polly${RESET}" ;;
-    3) KCFLAGS="-mllvm -polly -mllvm -polly-vectorizer=stripmine"
-       echo -e "${GREEN}✅ Medium Polly aktif${RESET}" ;;
-    4) KCFLAGS="-mllvm -polly -mllvm -polly-vectorizer=stripmine -mllvm -polly-parallel"
-       echo -e "${YELLOW}⚠️  Full Polly aktif — pastikan kernel sudah stabil${RESET}" ;;
-    *) KCFLAGS="-mllvm -polly"
-       echo -e "${GREEN}✅ Basic Polly aktif (default)${RESET}" ;;
-esac
-
-# =====================================================================
-# ⏱️ Mulai Build
+# ⏱️ TIMER MULAI
 # =====================================================================
 BUILD_START=$(date +%s)
-echo -e "\n${CYAN}🚀 Memulai proses build kernel dengan ${CPU_CORES} core...${RESET}"
 
-make -j"$CPU_CORES" \
-    -C "$KERNEL_DIR" \
-    O="$OUT_DIR" \
-    ARCH="$ARCH" \
-    CC="$CLANG_DIR/bin/clang" \
-    LD="$CLANG_DIR/bin/ld.lld" \
-    AR="$CLANG_DIR/bin/llvm-ar" \
-    NM="$CLANG_DIR/bin/llvm-nm" \
-    STRIP="$CLANG_DIR/bin/llvm-strip" \
-    OBJCOPY="$CLANG_DIR/bin/llvm-objcopy" \
-    OBJDUMP="$CLANG_DIR/bin/llvm-objdump" \
-    READELF="$CLANG_DIR/bin/llvm-readelf" \
-    LLVM=1 \
-    LLVM_IAS=1 \
-    CLANG_TRIPLE="aarch64-linux-gnu-" \
-    CROSS_COMPILE="aarch64-linux-gnu-" \
-    CROSS_COMPILE_ARM32="arm-linu-gnueabi-" \
-    ${KCFLAGS:+KCFLAGS="$KCFLAGS"} \
+# =====================================================================
+# 🚀 BUILD KERNEL
+# =====================================================================
+echo -e "${CYAN}🚀 Memulai build kernel (${CPU_CORES} cores)...${RESET}\n"
+make -j"$CPU_CORES" O="$OUT_DIR" ARCH="$ARCH" \
+    CC=clang \
+    LD=ld.lld \
+    AR=llvm-ar \
+    NM=llvm-nm \
+    STRIP=llvm-strip \
+    OBJCOPY=llvm-objcopy \
+    OBJDUMP=llvm-objdump \
+    READELF=llvm-readelf \
+    LLVM=1 LLVM_IAS=1 \
+    CROSS_COMPILE="$CLANG_DIR/bin/aarch64-linux-gnu-" \
+    CROSS_COMPILE_ARM32="$GCC32_DIR/bin/arm-linux-androideabi-" \
     2>&1 | tee -a "$BUILD_LOG"
 
-BUILD_STATUS=${PIPESTATUS[0]}
 BUILD_END=$(date +%s)
 BUILD_TIME=$((BUILD_END - BUILD_START))
 
 # =====================================================================
-# ✅ Cek Hasil Build
+# 📦 CEK HASIL BUILD
 # =====================================================================
 IMAGE="$OUT_DIR/arch/arm64/boot/Image.gz"
-DTB="$OUT_DIR/arch/arm64/boot/dtb.img"
-DTBO="$OUT_DIR/arch/arm64/boot/dtbo.img"
 
-echo -e "\n${CYAN}==============================================================${RESET}"
-
-if [ "$BUILD_STATUS" -ne 0 ] || [ ! -f "$IMAGE" ]; then
-    echo -e "${RED}❌ Build kernel gagal. Periksa log di: ${BUILD_LOG}${RESET}"
-    echo -e "${YELLOW}⏱️  Durasi Build : ${BUILD_TIME}s${RESET}"
-    echo -e "${CYAN}==============================================================${RESET}"
+if [ ! -f "$IMAGE" ]; then
+    echo -e "${RED}❌ Build kernel GAGAL! Cek ${BUILD_LOG}.${RESET}"
     exit 1
 fi
 
-echo -e "${GREEN}✅ Build kernel berhasil!${RESET}"
-echo -e "${YELLOW}⏱️  Durasi Build : ${GREEN}${BUILD_TIME}s${RESET}"
-echo -e "${YELLOW}📦 Image Output : ${BLUE}${IMAGE}${RESET}"
+echo -e "${GREEN}✅ Build kernel SUCCESS!${RESET}"
+echo -e "${YELLOW}📦 Output Image:${RESET} ${BLUE}${IMAGE}${RESET}"
+
+KERNEL_RELEASE=$(make -s O="$OUT_DIR" ARCH="$ARCH" kernelrelease 2>/dev/null || true)
+echo -e "${YELLOW}🔖 Kernel Release:${RESET} ${GREEN}${KERNEL_RELEASE}${RESET}"
 
 # =====================================================================
-# 📦 Clone AnyKernel3 & Packing
+# 📦 BUAT ANYKERNEL3 ZIP UNTUK MIATOLL
 # =====================================================================
-echo -e "\n${CYAN}📥 Mengkloning AnyKernel3 (miatoll)...${RESET}"
-git clone --depth=1 "$AK3_REPO" -b "$AK3_BRANCH" "$AK3_DIR"
+echo -e "${CYAN}📦 Menyiapkan AnyKernel3 untuk miatoll...${RESET}"
 
+# Clone atau update AnyKernel3
 if [ ! -d "$AK3_DIR" ]; then
-    echo -e "${RED}❌ Gagal mengkloning AnyKernel3 dari: $AK3_REPO${RESET}"
-    exit 1
+    echo -e "${YELLOW}📥 Mengclone AnyKernel3-miatoll...${RESET}"
+    git clone --depth 1 -b "$AK3_BRANCH" "$AK3_REPO" "$AK3_DIR" 2>&1 | tee -a "$BUILD_LOG"
 fi
 
-# Copy artifacts ke root AnyKernel3/
-echo -e "${YELLOW}📂 Menyalin kernel artifacts ke root AnyKernel3/...${RESET}"
+# Update AnyKernel3 supaya selalu fresh
+git -C "$AK3_DIR" fetch --depth 1 origin "$AK3_BRANCH" 2>&1 | tee -a "$BUILD_LOG"
+git -C "$AK3_DIR" checkout "$AK3_BRANCH" 2>&1 | tee -a "$BUILD_LOG"
 
-cp "$IMAGE" "$AK3_DIR/Image.gz"
-echo -e "  ${GREEN}✅ Image.gz disalin${RESET}"
+# Salin Image.gz ke AnyKernel3
+cp "$IMAGE" "$AK3_DIR/$DATE-img.gz-dtbo.img" 2>&1 | tee -a "$BUILD_LOG"
 
-if [ -f "$DTB" ]; then
-    cp "$DTB" "$AK3_DIR/dtb.img"
-    echo -e "  ${GREEN}✅ dtb.img disalin${RESET}"
+# Salin .config untuk debugging di ROM
+cp "$OUT_DIR/.config" "$AK3_DIR/.config" 2>&1 | tee -a "$BUILD_LOG"
+
+# Salin vmlinux jika ada (untuk debug symbol)
+if [ -f "$OUT_DIR/vmlinux" ]; then
+    cp "$OUT_DIR/vmlinux" "$AK3_DIR/vmlinux" 2>&1 | tee -a "$BUILD_LOG"
+fi
+
+# Salin dtbo jika ada
+if [ -f "$OUT_DIR/arch/arm64/boot/dtbo.img" ]; then
+    cp "$OUT_DIR/arch/arm64/boot/dtbo.img" "$AK3_DIR/dtbo.img" 2>&1 | tee -a "$BUILD_LOG"
+fi
+
+# Buat zip menggunakan AnyKernel3 script
+echo -e "${CYAN}📦 Membuat zip package...${RESET}"
+cd "$AK3_DIR"
+ZIP_NAME="Millenia-Kernel-MIATOLL-$DATE.zip"
+
+# Cek ada script zip di AnyKernel3
+if [ -f "$AK3_DIR/zip.sh" ]; then
+    bash "$AK3_DIR/zip.sh" "$ZIP_NAME" 2>&1 | tee -a "$BUILD_LOG"
 else
-    echo -e "  ${YELLOW}⚠️  dtb.img tidak ditemukan, dilewati${RESET}"
+    # Fallback: buat zip sederhana
+    cd "$AK3_DIR"
+    zip -r "$ZIP_NAME" .
+    echo -e "${YELLOW}⚠️  Gunakan zip.sh dari AnyKernel3 untuk hasil terbaik.${RESET}"
 fi
 
-if [ -f "$DTBO" ]; then
-    cp "$DTBO" "$AK3_DIR/dtbo.img"
-    echo -e "  ${GREEN}✅ dtbo.img disalin${RESET}"
-else
-    echo -e "  ${YELLOW}⚠️  dtbo.img tidak ditemukan, dilewati${RESET}"
-fi
+ZIP_PATH="$AK3_DIR/$ZIP_NAME"
 
-# Buat flashable ZIP
-ZIP_NAME="Super-Kernel-${DATE}.zip"
-cd "$AK3_DIR" || exit 1
-zip -r9 "$KERNEL_DIR/$ZIP_NAME" . -x "*.git*" 2>&1 | tee -a "$BUILD_LOG"
-cd "$KERNEL_DIR" || exit 1
+echo -e "${GREEN}✅ Zip Package Selesai:${RESET} ${BLUE}${ZIP_PATH}${RESET}"
+echo -e "${YELLOW}📏 Ukuran Zip:${RESET} $(du -h "$ZIP_PATH" | cut -f1)"
 
-echo -e "\n${CYAN}==============================================================${RESET}"
-echo -e "${GREEN}💾 Flashable ZIP : ${BLUE}${KERNEL_DIR}/${ZIP_NAME}${RESET}"
-echo -e "${CYAN}==============================================================${RESET}"
-echo -e "${MAGENTA}${BOLD}🎉 Congratulations by Michikoextv2 — Build Selesai!${RESET}\n"
+# =====================================================================
+# 📊 AKHIR BUILD & INSTRUKSI
+# =====================================================================
+BUILD_END=$(date +%s)
+BUILD_TIME=$((BUILD_END - BUILD_START))
+
+echo -e ""
+echo -e "${MAGENTA}${BOLD}================================================================${RESET}"
+echo -e " ${GREEN}✅ BUILD SELESAI UNTUK MIATOLL!${RESET}"
+echo -e ""
+echo -e "${CYAN}📁 File Output:${RESET}"
+echo -e "   ${BLUE}${IMAGE}${RESET}    —  Kernel Image (${KERNEL_RELEASE})"
+echo -e "   ${BLUE}${ZIP_PATH}${RESET}   —  Zip Package untuk di-flash"
+echo -e ""
+echo -e "${YELLOW}📋 Instruksi Flash:${RESET}"
+echo -e "   1. Copy zip ke SD card/internal storage HP miatoll"
+echo -e "   2. Boot ke TWRP/Custom Recovery"
+echo -e "   3. Pilih 'Install' → Pilih zip file"
+echo -e "   4. Swipe to confirm flash"
+echo -e "   5. Reboot dan nikmati ROM baru!${RESET}"
+echo -e ""
+echo -e "${CYAN}📊 Detail Build:${RESET}"
+echo -e "   ⏱️  Durasi: ${BUILD_TIME}s"
+echo -e "   🧰  Toolchain: $TOOLCHAIN_VERSION"
+echo -e "   🛡️  Fitur: CFI-Clang + LTO + GCC32 + 12 Config Matrix"
+echo -e ""
+echo -e "${MAGENTA}${BOLD}🎉 Selamat — Kernel Miatoll siap di-flash oleh Michikoextv2!${RESET}"
+echo -e "${MAGENTA}${BOLD}================================================================${RESET}"
+echo -e ""
+
+# Simpan informasi build untuk user
+echo "KERNEL_ZIP=$ZIP_PATH" >> "$KERNEL_DIR/build.log"
+echo "KERNEL_IMAGE=$IMAGE" >> "$KERNEL_DIR/build.log"
+echo "BUILD_TIME=$BUILD_TIME" >> "$KERNEL_DIR/build.log"
