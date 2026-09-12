@@ -4,7 +4,7 @@
 # 🔧 Dibuat oleh: Michikoextv2
 # 🧰 Toolchain: NezukoClang 23.1.1 + GCC ARM 32-bit
 # 📱 Device: Xiaomi Miatoll
-# 🎯 Output: Kernel Image + AnyKernel3 Zip Package
+# 🎯 Output: Kernel Image + AnyKernel3 Zip Package (branch: staging)
 # =====================================================================
 
 # =====================================================================
@@ -25,7 +25,7 @@ DATE="$(date +"%Y-%m-%d_%H-%M")"
 
 # 📦 AnyKernel3 Setup untuk miatoll
 AK3_REPO="https://github.com/Michikoextv2/AnyKernel3-miatoll.git"
-AK3_BRANCH="miatoll"
+AK3_BRANCH="staging"  # <<< BRANCH YANG DIMINTA USER
 AK3_DIR="$KERNEL_DIR/AnyKernel3"
 
 # 🧰 Toolchain Detection (Auto-detect NezukoClang)
@@ -86,6 +86,7 @@ echo -e "${YELLOW}💻 Host          :${RESET} ${GREEN}${HOST_OS} (${HOST_KERNEL
 echo -e "${YELLOW}🧵 CPU Cores     :${RESET} ${GREEN}${CPU_CORES}${RESET}"
 echo -e "${YELLOW}🧰 Toolchain     :${RESET} ${GREEN}${TOOLCHAIN_VERSION}${RESET}"
 echo -e "${YELLOW}📱 Device       :${RESET} ${GREEN}miatoll${RESET}"
+echo -e "${YELLOW}🌍 AK3 Branch   :${RESET} ${GREEN}${AK3_BRANCH}${RESET}"
 echo -e "${MAGENTA}================================================================${RESET}"
 echo -e ""
 echo -e "${CYAN}📦 Proses: Generate Defconfig → Build Kernel → Buat Zip (AnyKernel3)${RESET}"
@@ -123,7 +124,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# 🔧 Aktifkan fitur krusial SETELAH defconfig
+# 🔧 Aktifkan fitur krusial SETELA defconfig
 echo -e "${CYAN}🔧 Memasang konfigurasi krusial...${RESET}"
 # CFI Clang
 echo "CONFIG_CFI_CLANG=y" >> "$OUT_DIR/.config"
@@ -198,13 +199,13 @@ if [ -n "$KERNEL_RELEASE" ]; then
 fi
 
 # =====================================================================
-# 📦 BUAT ANYKERNEL3 ZIP UNTUK MIATOLL
+# 📦 BUAT ANYKERNEL3 ZIP UNTUK MIATOLL (branch staging)
 # =====================================================================
-echo -e "${CYAN}📦 Menyiapkan AnyKernel3 untuk miatoll...${RESET}"
+echo -e "${CYAN}📦 Menyiapkan AnyKernel3 untuk miatoll (branch: ${AK3_BRANCH})...${RESET}"
 
 # Clone atau update AnyKernel3
 if [ ! -d "$AK3_DIR" ]; then
-    echo -e "${YELLOW}📥 Mengclone AnyKernel3-miatoll...${RESET}"
+    echo -e "${YELLOW}📥 Mengclone AnyKernel3-miatoll (branch: ${AK3_BRANCH})...${RESET}"
     git clone --depth 1 -b "$AK3_BRANCH" "$AK3_REPO" "$AK3_DIR" 2>&1 | tee -a "$BUILD_LOG"
 fi
 
@@ -257,7 +258,7 @@ echo -e " ${GREEN}✅ BUILD SELESAI UNTUK MIATOLL!${RESET}"
 echo -e ""
 echo -e "${CYAN}📁 File Output:${RESET}"
 echo -e "   ${BLUE}${IMAGE}${RESET}    —  Kernel Image (${KERNEL_RELEASE})"
-echo -e "   ${BLUE}${ZIP_PATH}${RESET}   —  Zip Package untuk di-flash"
+echo -e "   ${BLUE}${ZIP_PATH}${RESET}   —  Zip Package untuk di-flash (branch: ${AK3_BRANCH})"
 echo -e ""
 echo -e "${YELLOW}📋 Instruksi Flash:${RESET}"
 echo -e "   1. Copy zip ke SD card/internal storage HP miatoll"
