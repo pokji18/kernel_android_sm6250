@@ -754,6 +754,17 @@ static void set_load_weight(struct task_struct *p)
 	int prio = p->static_prio - MAX_RT_PRIO;
 	struct load_weight *load = &p->se.load;
 
+#ifdef CONFIG_SCHED_BORE
+	/*
+	 * Apply BORE's burst-score penalty here too, not just from
+	 * update_burst_score(): nice()/sched_setattr() land here and
+	 * reweight the task using only static_prio, silently discarding
+	 * se.burst_score. Same formula and clamp as fair.c.
+	 */
+	if (likely(sched_bore))
+		prio = min(39, prio + p->se.burst_score);
+#endif
+
 	/*
 	 * SCHED_IDLE tasks get minimal weight:
 	 */
