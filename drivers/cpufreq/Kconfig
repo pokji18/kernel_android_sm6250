@@ -320,6 +320,32 @@ config CPU_FREQ_GOV_VORPAL
 
 	  If in doubt, say N.
 
+config CPU_FREQ_GOV_BLU_SCHEDUTIL
+	bool "'blu_schedutil' cpufreq policy governor"
+	depends on CPU_FREQ && SMP
+	select CPU_FREQ_GOV_ATTR_SET
+	select IRQ_WORK
+	help
+	  Blu_schedutil is a schedutil-derived governor tuned for
+	  interactive responsiveness with a powersave bias. It shares
+	  schedutil's scheduler utilization tracking, hispeed frequency
+	  and predictive-load tunables with blu-oriented defaults.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_GOV_PWRUTILX
+	bool "'pwrutilx' cpufreq policy governor"
+	depends on CPU_FREQ && SMP
+	select CPU_FREQ_GOV_ATTR_SET
+	select IRQ_WORK
+	help
+	  Pwrutilx is a schedutil-derived governor tuned for power
+	  efficiency. It shares schedutil's scheduler utilization
+	  tracking, hispeed frequency and predictive-load tunables with
+	  efficiency-oriented defaults.
+
+	  If in doubt, say N.
+
 config CPU_FREQ_GOV_INTERACTIVE
 	tristate "'interactive' cpufreq policy governor"
 	depends on CPU_FREQ
@@ -337,6 +363,53 @@ config CPU_FREQ_GOV_INTERACTIVE
 	  module will be called cpufreq_interactive.
 
 	  For details, take a look at linux/Documentation/cpu-freq.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_GOV_CONSERVATIVEX
+	tristate "'conservativex' cpufreq governor"
+	depends on CPU_FREQ
+	select CPU_FREQ_GOV_COMMON
+	help
+	  'conservativex' - a snappier conservative variant. Like the
+	  'conservative' governor it steps the frequency gradually
+	  instead of jumping, but with a higher up threshold, higher
+	  down threshold and larger frequency steps for better
+	  responsiveness.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cpufreq_conservativex.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_GOV_SMARTMAX
+	tristate "'smartmax' cpufreq governor"
+	depends on CPU_FREQ
+	select CPU_FREQ_GOV_COMMON
+	help
+	  'smartmax' - ramps up quickly toward an ideal frequency and
+	  steps down gradually. Tunables: ideal_freq, ramp_up_step and
+	  ramp_down_step plus the standard sampling_rate, up_threshold,
+	  down_threshold and ignore_nice_load.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cpufreq_smartmax.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_GOV_DARKNESS
+	tristate "'darkness' cpufreq governor"
+	depends on CPU_FREQ
+	select CPU_FREQ_GOV_COMMON
+	help
+	  'darkness' - jumps straight to max frequency on high load for
+	  minimum latency and steps down gradually otherwise, drifting
+	  toward an ideal frequency on moderate load. Tunables:
+	  down_differential, ideal_freq and freq_step plus the standard
+	  sampling_rate, up_threshold and ignore_nice_load.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cpufreq_darkness.
 
 	  If in doubt, say N.
 
