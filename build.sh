@@ -15,7 +15,14 @@ RESET='\033[0m'; BOLD='\033[1m'
 # 📂 Variabel utama
 KERNEL_DIR=$(pwd)
 OUT_DIR="$KERNEL_DIR/out"
-CLANG_DIR="$KERNEL_DIR/../clang"
+CLANG_DIR="${CLANG_DIR:-$KERNEL_DIR/../clang}"
+# Auto-detect: NezukoClang may live inside clang/ or next to the kernel dir
+if [ ! -f "$CLANG_DIR/bin/clang" ] && [ -f "$CLANG_DIR/NezukoClang/bin/clang" ]; then
+    CLANG_DIR="$CLANG_DIR/NezukoClang"
+fi
+if [ ! -f "$CLANG_DIR/bin/clang" ] && [ -f "$KERNEL_DIR/../NezukoClang/bin/clang" ]; then
+    CLANG_DIR="$KERNEL_DIR/../NezukoClang"
+fi
 GCC32_DIR="$KERNEL_DIR/../arm-linux-androideabi-4.9"
 ARCH="arm64"
 BUILD_LOG="$KERNEL_DIR/build.log"

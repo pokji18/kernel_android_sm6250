@@ -17,7 +17,14 @@ RESET='\033[0m'; BOLD='\033[1m'
 KERNEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUT_DIR="${KERNEL_DIR}/out"
 WORKSPACE="${KERNEL_DIR}/.."
-CLANG_DIR="${WORKSPACE}/clang"
+CLANG_DIR="${CLANG_DIR:-${WORKSPACE}/clang}"
+# Auto-detect: NezukoClang may live inside clang/ or next to the kernel dir
+if [ ! -f "${CLANG_DIR}/bin/clang" ] && [ -f "${CLANG_DIR}/NezukoClang/bin/clang" ]; then
+    CLANG_DIR="${CLANG_DIR}/NezukoClang"
+fi
+if [ ! -f "${CLANG_DIR}/bin/clang" ] && [ -f "${WORKSPACE}/NezukoClang/bin/clang" ]; then
+    CLANG_DIR="${WORKSPACE}/NezukoClang"
+fi
 GCC64_DIR="${WORKSPACE}/aarch64-linux-android-4.9"
 GCC32_DIR="${WORKSPACE}/arm-linux-androideabi-4.9"
 ARCH="arm64"
