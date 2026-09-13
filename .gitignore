@@ -19,7 +19,6 @@
 *.dwo
 *.elf
 *.gcno
-*.gz
 *.i
 *.ko
 *.ll
@@ -132,5 +131,3 @@ Android.bp
 out/
 *.img
 *.log
-*.gz
-KernelSU/
