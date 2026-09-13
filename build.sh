@@ -26,9 +26,20 @@ if [ -z "$CLANG_DIR" ] || [ ! -f "$CLANG_DIR/bin/clang" ]; then
     [ -f "$cand/bin/clang" ] && CLANG_DIR="$cand" && break
   done
 fi
-# fallback realpath lama jika masih kosong
+# fallback + auto-download NezukoClang jika belum ada (biar ikut repo saat clone)
 if [ ! -f "$CLANG_DIR/bin/clang" ]; then
   CLANG_DIR="$(realpath "$KERNEL_DIR/../clang/install" 2>/dev/null || echo "$KERNEL_DIR/../clang")"
+fi
+if [ ! -f "$CLANG_DIR/bin/clang" ]; then
+  echo -e "${YELLOW}⚠️ Clang tidak ada — auto-clone NezukoClang 23.1.2 (Polly) ...${RESET}"
+  mkdir -p "$KERNEL_DIR/../clang"
+  git clone --depth 1 https://github.com/pokji18/NezukoClang.git "$KERNEL_DIR/../clang/NezukoClang" 2>&1 | tail -n 3
+  for cand in "$KERNEL_DIR/../clang/NezukoClang" "/tmp/nezuko-pubtest/NezukoClang" "/serverhive1/nezuko330/clang/NezukoClang"; do [ -f "$cand/bin/clang" ] && CLANG_DIR="$cand" && break; done
+  # fallback download tarball jika git gagal (network)
+  if [ ! -f "$CLANG_DIR/bin/clang" ]; then
+    echo -e "${YELLOW} git clone gagal, coba download tarball ...${RESET}"
+    curl -LSs https://github.com/pokji18/NezukoClang/releases/download/23.1.2/NezukoClang-23.1.2.tar.zst 2>&1 | head -n 2
+  fi
 fi
 GCC32_DIR="${GCC32_DIR:-$(realpath "$KERNEL_DIR/../gcc32/gcc-arm" 2>/dev/null || echo "$KERNEL_DIR/../arm-linux-androideabi-4.9")}"
 # auto-cari GCC32 jika path utama tidak ada
