@@ -210,9 +210,20 @@ case "$polly_choice" in
        echo -e "${GREEN}✅ Medium Polly aktif${RESET}" ;;
     4) KCFLAGS="-mllvm -polly -mllvm -polly-vectorizer=stripmine -mllvm -polly-parallel"
        echo -e "${YELLOW}⚠️  Full Polly aktif — pastikan kernel sudah stabil${RESET}" ;;
-    *) KCFLAGS="-mllvm -polly"
-       echo -e "${GREEN}✅ Basic Polly aktif (default)${RESET}" ;;
+     *) KCFLAGS="-mllvm -polly"
+        echo -e "${GREEN}✅ Basic Polly aktif (default)${RESET}" ;;
 esac
+# 🔧 Auto-fix untuk semua level Polly: WALT + Polly = error sched.h:989 cfs_rq->rq
+if [[ "$KCFLAGS" == *"-polly"* ]]; then
+  if grep -q "CONFIG_SCHED_WALT=y" "$OUT_DIR/.config" 2>/dev/null; then
+    sed -i 's/CONFIG_SCHED_WALT=y/# CONFIG_SCHED_WALT is not set/' "$OUT_DIR/.config"
+    echo -e "${YELLOW}🔧 Auto-fix: SCHED_WALT dimatikan (Polly incompatible sched.h:989)${RESET}"
+  fi
+  # pastikan IPC_LOGGING ada (untuk esoc/mdm undefined)
+  grep -q "CONFIG_IPC_LOGGING=y" "$OUT_DIR/.config" 2>/dev/null || echo "CONFIG_IPC_LOGGING=y" >> "$OUT_DIR/.config"
+  grep -q "CONFIG_ESOC_MDM_4x=y" "$OUT_DIR/.config" 2>/dev/null || echo "CONFIG_ESOC_MDM_4x=y" >> "$OUT_DIR/.config"
+  yes '' | make -C "$KERNEL_DIR" O="$OUT_DIR" ARCH="$ARCH" olddefconfig 2>&1 | tail -n2 | tee -a "$BUILD_LOG"
+fi
 
 # =====================================================================
 # ⏱️ Mulai Build
