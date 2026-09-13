@@ -56,7 +56,7 @@ TOOLCHAIN_VERSION=$("$CLANG_DIR/bin/clang" --version 2>/dev/null | head -n1)
 CLANG_LLD_VER=$("$CLANG_DIR/bin/ld.lld" --version 2>/dev/null | head -n1 | xargs)
 if [ -f "$CLANG_DIR/bin/llvm-profdata" ]; then CLANG_PGO_INFO="✅ PGO (llvm-profdata)"; else CLANG_PGO_INFO="❌ PGO tidak ada"; fi
 if [ -f "$CLANG_DIR/lib/libLTO.so" ] || [ -f "$CLANG_DIR/lib64/libLTO.so" ] || echo "$TOOLCHAIN_VERSION" | grep -qi "clang"; then CLANG_LTO_INFO="✅ LTO/ThinLTO (ld.lld)"; else CLANG_LTO_INFO="❌ LTO tidak ada"; fi
-if ls "$CLANG_DIR"/lib/*Polly* 1>/dev/null 2>&1 || "$CLANG_DIR/bin/clang" -mllvm --help 2>&1 | grep -qi polly; then CLANG_POLLY_INFO="✅ Polly"; else CLANG_POLLY_INFO="❌ Polly tidak ada"; fi
+if strings "$CLANG_DIR/bin/clang" 2>/dev/null | grep -qi "polly" || ls "$CLANG_DIR"/lib/*Polly* 1>/dev/null 2>&1; then CLANG_POLLY_INFO="✅ Polly (built-in)"; else CLANG_POLLY_INFO="❌ Polly tidak ada"; fi
 if [ -f "$CLANG_DIR/bin/llvm-bolt" ]; then CLANG_BOLT_INFO="✅ BOLT"; else CLANG_BOLT_INFO="❌ BOLT tidak ada"; fi
 
 clear
