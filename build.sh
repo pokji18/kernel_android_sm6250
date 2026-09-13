@@ -44,7 +44,7 @@ DIR="$(dirname "$0")"
 REAL="$DIR/clang-23.real"
 [ -f "$REAL" ] || REAL="$DIR/clang.real"
 if [[ "$*" == *"--version"* ]]; then
-  "$REAL" --version 2>&1 | sed 's/NezukoClang clang version/clang version/; s/$/ (https:\/\/github.com\/llvm\/llvm-project)/'
+  "$REAL" --version 2>&1 | sed 's/$/ (https:\/\/github.com\/llvm\/llvm-project)/'
   exit $?
 fi
 exec "$REAL" "$@"
