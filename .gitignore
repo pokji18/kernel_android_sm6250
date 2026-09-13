@@ -131,3 +131,6 @@ Android.bp
 out/
 *.img
 *.log
+KernelSU-Next/kernel/kernel
+Super-Kernel-*.zip
+*.profraw
