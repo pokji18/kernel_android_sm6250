@@ -14,6 +14,10 @@
 #include <linux/slab.h>
 #include "esoc.h"
 
+#ifndef CONFIG_ESOC_MDM_4x
+void *ipc_log = NULL;
+#endif
+
 static DEFINE_IDA(esoc_ida);
 
 /* SYSFS */

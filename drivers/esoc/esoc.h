@@ -27,7 +27,11 @@
 
 #define ESOC_MDM_IPC_PAGES	10
 
+#ifndef CONFIG_ESOC_MDM_4x
 extern void *ipc_log;
+#else
+extern void *ipc_log;
+#endif
 
 #define esoc_mdm_log(__msg, ...) \
 do { \
@@ -197,3 +201,11 @@ bool esoc_cmd_eng_enabled(struct esoc_clink *esoc_clink);
 /* Modem boot fail actions */
 int esoc_set_boot_fail_action(struct esoc_clink *esoc_clink, u32 action);
 int esoc_set_n_pon_tries(struct esoc_clink *esoc_clink, u32 n_tries);
+#ifndef CONFIG_ESOC_MDM_DRV
+static inline int esoc_set_boot_fail_action_stub(struct esoc_clink *c, u32 a) { return -ENODEV; }
+static inline int esoc_set_n_pon_tries_stub(struct esoc_clink *c, u32 n) { return -ENODEV; }
+#undef esoc_set_boot_fail_action
+#undef esoc_set_n_pon_tries
+#define esoc_set_boot_fail_action esoc_set_boot_fail_action_stub
+#define esoc_set_n_pon_tries esoc_set_n_pon_tries_stub
+#endif
