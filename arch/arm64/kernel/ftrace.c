@@ -18,6 +18,9 @@
 #include <asm/debug-monitors.h>
 #include <asm/ftrace.h>
 #include <asm/insn.h>
+#ifndef __va_function
+#define __va_function(x) ((unsigned long)(x))
+#endif
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 /*
