@@ -29,13 +29,15 @@ AK3_BRANCH="staging"  # <<< BRANCH YANG DIMINTA USER
 AK3_DIR="$KERNEL_DIR/AnyKernel3"
 
 # 🧰 Toolchain Detection (Auto-detect NezukoClang)
-CLANG_DIR="${CLANG_DIR:-$KERNEL_DIR/../clang}"
-if [ ! -f "$CLANG_DIR/bin/clang" ] && [ -f "$CLANG_DIR/NezukoClang/bin/clang" ]; then
-    CLANG_DIR="$CLANG_DIR/NezukoClang"
+# Auto-detect clang kamu (NezukoClang) - prioritas: env CLANG_DIR > ../clang > ../NezukoClang > /serverhive1
+if [ -z "$CLANG_DIR" ] || [ ! -f "$CLANG_DIR/bin/clang" ]; then
+  for cand in "$KERNEL_DIR/../clang" "$KERNEL_DIR/../clang/NezukoClang" "$KERNEL_DIR/../NezukoClang" "/serverhive1/nezuko330/clang/NezukoClang" "/tmp/nezuko-pubtest/NezukoClang"; do
+    if [ -f "$cand/bin/clang" ]; then CLANG_DIR="$cand"; break; fi
+  done
 fi
-if [ ! -f "$CLANG_DIR/bin/clang" ] && [ -f "$KERNEL_DIR/../NezukoClang/bin/clang" ]; then
-    CLANG_DIR="$KERNEL_DIR/../NezukoClang"
-fi
+# fallback dari PATH jika masih kosong
+if [ ! -f "$CLANG_DIR/bin/clang" ] && command -v clang >/dev/null 2>&1; then CLANG_DIR="$(dirname $(dirname $(command -v clang)) 2>/dev/null)"; fi
+if [ ! -f "$CLANG_DIR/bin/clang" ] && [ -f "$CLANG_DIR/NezukoClang/bin/clang" ]; then CLANG_DIR="$CLANG_DIR/NezukoClang"; fi
 
 # FIX: Buat symlink ld.gold jika belum ada (crash saat build VDSO)
 if [ ! -f "$CLANG_DIR/bin/aarch64-linux-gnu-ld.gold" ]; then
@@ -72,12 +74,9 @@ HOST_OS=$(uname -o)
 HOST_KERNEL=$(uname -r)
 HOST_CPU=$(grep -m1 "model name" /proc/cpuinfo | cut -d: -f2 | sed 's/^ //')
 TOOLCHAIN_VERSION=$("$CLANG_DIR/bin/clang" --version | head -n 1)
-# 🔬 Deteksi LTO / PGO / Polly
-CLANG_LLD_VER=$("$CLANG_DIR/bin/ld.lld" --version 2>/dev/null | head -n1 | xargs)
-if [ -f "$CLANG_DIR/bin/llvm-profdata" ] || [ -f "$CLANG_DIR/bin/llvm-profdata-23" ]; then CLANG_PGO_INFO="✅ PGO (profdata tersedia)"; else CLANG_PGO_INFO="❌ PGO tidak tersedia"; fi
-if echo "$TOOLCHAIN_VERSION" | grep -q "LTO\|ThinLTO\|lld" || [ -f "$CLANG_DIR/lib/libLTO.so" ] || [ -f "$CLANG_DIR/lib64/libLTO.so" ]; then CLANG_LTO_INFO="✅ LTO/ThinLTO (ld.lld + libLTO)"; else CLANG_LTO_INFO="✅ LTO (ld.lld)"; fi
-if ls "$CLANG_DIR"/lib/*Polly* 1>/dev/null 2>&1 || "$CLANG_DIR/bin/clang" -mllvm --help 2>&1 | grep -qi "polly"; then CLANG_POLLY_INFO="✅ Polly"; else CLANG_POLLY_INFO="❌ Polly tidak ada"; fi
-if [ -f "$CLANG_DIR/bin/llvm-bolt" ]; then CLANG_BOLT_INFO="✅ BOLT"; else CLANG_BOLT_INFO="❌ BOLT tidak ada"; fi
+# Deteksi LLVM Polly (akan diaktifkan jika tersedia di toolchain)
+if ls "$CLANG_DIR"/lib/*Polly* 1>/dev/null 2>&1 || "$CLANG_DIR/bin/clang" -mllvm --help 2>&1 | grep -qi polly; then HAS_POLLY=1; POLLY_INFO="✅ LLVM Polly tersedia"; else HAS_POLLY=0; POLLY_INFO="❌ Polly tidak ada (build tetap jalan)"; fi
+[ "$HAS_POLLY" = 1 ] && echo -e "${GREEN}${POLLY_INFO}: $CLANG_DIR${RESET}" || echo -e "${YELLOW}${POLLY_INFO}${RESET}"
 
 # =====================================================================
 # 🖨️ TAMPILAN KELAS INTERNASAL
@@ -91,14 +90,12 @@ echo -e "${YELLOW}🧠 CPU           :${RESET} ${GREEN}${HOST_CPU}${RESET}"
 echo -e "${YELLOW}💻 Host          :${RESET} ${GREEN}${HOST_OS} (${HOST_KERNEL})${RESET}"
 echo -e "${YELLOW}🧵 CPU Cores     :${RESET} ${GREEN}${CPU_CORES}${RESET}"
 echo -e "${YELLOW}🧰 Toolchain     :${RESET} ${GREEN}${TOOLCHAIN_VERSION}${RESET}"
-echo -e "${YELLOW}   ├─ LTO         :${RESET} ${GREEN}${CLANG_LTO_INFO} | ${CLANG_LLD_VER}${RESET}"
-echo -e "${YELLOW}   ├─ PGO         :${RESET} ${GREEN}${CLANG_PGO_INFO}${RESET}"
-echo -e "${YELLOW}   ├─ Opt         :${RESET} ${GREEN}${CLANG_POLLY_INFO} | ${CLANG_BOLT_INFO}${RESET}"
+echo -e "${YELLOW}   └─ Polly       :${RESET} ${GREEN}${POLLY_INFO}${RESET}"
 echo -e "${YELLOW}📱 Device       :${RESET} ${GREEN}miatoll${RESET}"
 echo -e "${YELLOW}🌍 AK3 Branch   :${RESET} ${GREEN}${AK3_BRANCH}${RESET}"
 echo -e "${MAGENTA}================================================================${RESET}"
 echo -e ""
-echo -e "${CYAN}📦 Proses: Generate Defconfig → Menuconfig → Build Kernel → Buat Zip (AnyKernel3)${RESET}"
+echo -e "${CYAN}📦 Proses: Generate Defconfig → Build Kernel → Buat Zip (AnyKernel3)${RESET}"
 echo -e ""
 
 # =====================================================================
@@ -139,13 +136,14 @@ echo -e "${CYAN}🔧 Memasang konfigurasi krusial...${RESET}"
 echo "CONFIG_CFI_CLANG=y" >> "$OUT_DIR/.config"
 echo "CONFIG_CFI_PERMISSIVE=y" >> "$OUT_DIR/.config"
 echo "CONFIG_CFI_CLANG_SHADOW=y" >> "$OUT_DIR/.config"
-# LTO
+# LTO + Polly (auto enable jika toolchain support)
 echo "CONFIG_LTO_CLANG=y" >> "$OUT_DIR/.config"
+if [ "$HAS_POLLY" = 1 ]; then echo "CONFIG_LLVM_POLLY=y" >> "$OUT_DIR/.config"; echo -e "${GREEN}✅ LLVM_POLLY diaktifkan${RESET}"; else echo "# CONFIG_LLVM_POLLY is not set" >> "$OUT_DIR/.config"; fi
 # GCC32/COMPAT
 echo "CONFIG_COMPAT=y" >> "$OUT_DIR/.config"
 # HID & BPF untuk matrix level 7
 echo "CONFIG_HIDRAW=y" >> "$OUT_DIR/.config"
-echo "CONFIG_HID_PLAYSTATION=n" >> "$OUT_DIR/.config"
+echo "CONFIG_HID_PLAYSTATION=y" >> "$OUT_DIR/.config"
 echo "CONFIG_NET_ACT_BPF=y" >> "$OUT_DIR/.config"
 echo "CONFIG_NET_ACT_POLICE=y" >> "$OUT_DIR/.config"
 echo "CONFIG_NET_CLS_MATCHALL=y" >> "$OUT_DIR/.config"
@@ -160,15 +158,8 @@ echo "CONFIG_CC_IS_CLANG=y" >> "$OUT_DIR/.config"
 echo -e "${CYAN}✅ Menjalankan olddefconfig...${RESET}"
 yes '' | make O="$OUT_DIR" ARCH="$ARCH" olddefconfig 2>&1 | tee -a "$BUILD_LOG"
 
-# 🧭 Masuk ke menu defconfig dulu (sesuai request) - cek/ubah config, save & exit untuk lanjut
-echo -e "${CYAN}🧭 Membuka menuconfig (defconfig) — silakan cek/ubah, save & exit untuk lanjut build...${RESET}"
-echo -e "${YELLOW}   (Jika non-interaktif/Codespace, akan skip otomatis dalam 5 detik)${RESET}"
-if [ -t 0 ] && [ -t 1 ]; then
-  make O="$OUT_DIR" ARCH="$ARCH" menuconfig 2>&1 | tee -a "$BUILD_LOG" || echo -e "${YELLOW}⚠️ menuconfig exit dengan kode $? — lanjut build${RESET}"
-else
-  # Non-interaktif: kasih timeout 5 detik, jika tidak ada input skip
-  timeout 5 bash -c "make O=\"$OUT_DIR\" ARCH=\"$ARCH\" menuconfig" 2>&1 | tee -a "$BUILD_LOG" || echo -e "${YELLOW}⚠️ menuconfig skip (non-interaktif) — lanjut build${RESET}"
-fi
+# Lancar langsung ke build - jangan jalankan silentoldconfig lagi
+# karena sudah dijalankan olddefconfig di atas dan config sudah tepat
 
 # =====================================================================
 # ⏱️ TIMER MULAI
@@ -286,8 +277,6 @@ echo -e ""
 echo -e "${CYAN}📊 Detail Build:${RESET}"
 echo -e "   ⏱️  Durasi: ${BUILD_TIME}s"
 echo -e "   🧰  Toolchain: $TOOLCHAIN_VERSION"
-echo -e "       • LTO: $CLANG_LTO_INFO | $CLANG_LLD_VER"
-echo -e "       • PGO: $CLANG_PGO_INFO | Polly: $CLANG_POLLY_INFO | BOLT: $CLANG_BOLT_INFO"
 echo -e "   🛡️  Fitur: CFI-Clang + LTO + GCC32 + 12 Config Matrix"
 echo -e ""
 echo -e "${MAGENTA}${BOLD}🎉 Selamat — Kernel Miatoll siap di-flash oleh Michikoextv2!${RESET}"
