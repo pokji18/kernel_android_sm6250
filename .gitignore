@@ -133,3 +133,4 @@ out/
 *.img
 *.log
 *.gz
+KernelSU/
