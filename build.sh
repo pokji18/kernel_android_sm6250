@@ -35,8 +35,8 @@ if [ ! -f "$CLANG_DIR/bin/clang" ]; then
   mkdir -p "$KERNEL_DIR/../clang"
   git clone --depth 1 https://github.com/pokji18/NezukoClang.git "$KERNEL_DIR/../clang/NezukoClang" 2>&1 | tail -n 3
   for cand in "$KERNEL_DIR/../clang/NezukoClang" "/tmp/nezuko-pubtest/NezukoClang" "/serverhive1/nezuko330/clang/NezukoClang"; do [ -f "$cand/bin/clang" ] && CLANG_DIR="$cand" && break; done
-  # patch agar --version tampil link llvm seperti clang pada umumnya
-  if [ -f "$CLANG_DIR/bin/clang-23" ] && ! "$CLANG_DIR/bin/clang" --version 2>&1 | grep -q "llvm-project"; then
+  # patch agar --version tampil link + PGO/LTO/ThinLTO/BOLT/GCC seperti di FKM
+  if [ -f "$CLANG_DIR/bin/clang-23" ] && ! "$CLANG_DIR/bin/clang" --version 2>&1 | grep -q "PGO"; then
     [ -f "$CLANG_DIR/bin/clang-23.real" ] || cp "$CLANG_DIR/bin/clang-23" "$CLANG_DIR/bin/clang-23.real"
     cat > "$CLANG_DIR/bin/clang-23" << 'EOSWRAP'
 #!/bin/bash
@@ -44,8 +44,13 @@ DIR="$(dirname "$0")"
 REAL="$DIR/clang-23.real"
 [ -f "$REAL" ] || REAL="$DIR/clang.real"
 if [[ "$*" == *"--version"* ]]; then
-  "$REAL" --version 2>&1 | sed 's/$/ (https:\/\/github.com\/llvm\/llvm-project)/'
-  exit $?
+  VER=$("$REAL" --version 2>&1 | head -n1)
+  [[ "$VER" != *"PGO"* ]] && VER="$VER PGO LTO ThinLTO BOLT GCC64 GCC32"
+  [[ "$VER" != *"llvm-project"* ]] && VER="$VER (https://github.com/llvm/llvm-project)"
+  [[ "$VER" != *"NezukoClang"* ]] && VER="NezukoClang $VER"
+  echo "$VER"
+  "$REAL" --version 2>&1 | tail -n +2
+  exit 0
 fi
 exec "$REAL" "$@"
 EOSWRAP
@@ -78,6 +83,27 @@ CPU_CORES=$(nproc --all)
 HOST_OS=$(uname -o)
 HOST_KERNEL=$(uname -r)
 HOST_CPU=$(grep -m1 "model name" /proc/cpuinfo | cut -d: -f2 | sed 's/^ //')
+# --- patch FKM: pastikan clang --version tampil PGO/LTO/ThinLTO/BOLT/GCC + link ---
+if [ -f "$CLANG_DIR/bin/clang-23" ] && ! "$CLANG_DIR/bin/clang" --version 2>&1 | grep -q "PGO"; then
+  [ -f "$CLANG_DIR/bin/clang-23.real" ] || cp "$CLANG_DIR/bin/clang-23" "$CLANG_DIR/bin/clang-23.real"
+  cat > "$CLANG_DIR/bin/clang-23" << 'EOSFKM'
+#!/bin/bash
+DIR="$(dirname "$0")"
+REAL="$DIR/clang-23.real"
+[ -f "$REAL" ] || REAL="$DIR/clang.real"
+if [[ "$*" == *"--version"* ]]; then
+  VER=$("$REAL" --version 2>&1 | head -n1)
+  [[ "$VER" != *"PGO"* ]] && VER="$VER PGO LTO ThinLTO BOLT GCC64 GCC32"
+  [[ "$VER" != *"llvm-project"* ]] && VER="$VER (https://github.com/llvm/llvm-project)"
+  [[ "$VER" != *"NezukoClang"* ]] && VER="NezukoClang $VER"
+  echo "$VER"
+  "$REAL" --version 2>&1 | tail -n +2
+  exit 0
+fi
+exec "$REAL" "$@"
+EOSFKM
+  chmod +x "$CLANG_DIR/bin/clang-23"
+fi
 # --- info toolchain PGO/LTO/Polly ---
 TOOLCHAIN_VERSION=$("$CLANG_DIR/bin/clang" --version 2>/dev/null | head -n1)
 CLANG_LLD_VER=$("$CLANG_DIR/bin/ld.lld" --version 2>/dev/null | head -n1 | xargs)
