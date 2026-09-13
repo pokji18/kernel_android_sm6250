@@ -35,6 +35,22 @@ if [ ! -f "$CLANG_DIR/bin/clang" ]; then
   mkdir -p "$KERNEL_DIR/../clang"
   git clone --depth 1 https://github.com/pokji18/NezukoClang.git "$KERNEL_DIR/../clang/NezukoClang" 2>&1 | tail -n 3
   for cand in "$KERNEL_DIR/../clang/NezukoClang" "/tmp/nezuko-pubtest/NezukoClang" "/serverhive1/nezuko330/clang/NezukoClang"; do [ -f "$cand/bin/clang" ] && CLANG_DIR="$cand" && break; done
+  # patch agar --version tampil link llvm seperti clang pada umumnya
+  if [ -f "$CLANG_DIR/bin/clang-23" ] && ! "$CLANG_DIR/bin/clang" --version 2>&1 | grep -q "llvm-project"; then
+    [ -f "$CLANG_DIR/bin/clang-23.real" ] || cp "$CLANG_DIR/bin/clang-23" "$CLANG_DIR/bin/clang-23.real"
+    cat > "$CLANG_DIR/bin/clang-23" << 'EOSWRAP'
+#!/bin/bash
+DIR="$(dirname "$0")"
+REAL="$DIR/clang-23.real"
+[ -f "$REAL" ] || REAL="$DIR/clang.real"
+if [[ "$*" == *"--version"* ]]; then
+  "$REAL" --version 2>&1 | sed 's/NezukoClang clang version/clang version/; s/$/ (https:\/\/github.com\/llvm\/llvm-project)/'
+  exit $?
+fi
+exec "$REAL" "$@"
+EOSWRAP
+    chmod +x "$CLANG_DIR/bin/clang-23"
+  fi
   # fallback download tarball jika git gagal (network)
   if [ ! -f "$CLANG_DIR/bin/clang" ]; then
     echo -e "${YELLOW} git clone gagal, coba download tarball ...${RESET}"
