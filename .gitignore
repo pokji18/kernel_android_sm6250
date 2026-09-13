@@ -132,3 +132,4 @@ Android.bp
 out/
 *.img
 *.log
+*.gz
