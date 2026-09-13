@@ -36,6 +36,8 @@ lib-y := ctype.o string.o vsprintf.o cmdline.o \
 	 is_single_threaded.o plist.o decompress.o kobject_uevent.o \
 	 earlycpio.o seq_buf.o siphash.o \
 	 nmi_backtrace.o nodemask.o win_minmax.o
+# Polly 2-4 aman: win_minmax mis-optimizes with LTO+Polly (esoc/mdm at link) - disable LTO+CFI+Polly
+CFLAGS_win_minmax.o += -mllvm -polly=false -fno-lto -fno-sanitize=cfi
 
 lib-$(CONFIG_MMU) += ioremap.o
 lib-$(CONFIG_SMP) += cpumask.o
