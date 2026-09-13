@@ -256,15 +256,21 @@ echo -e "  ${CYAN}4)${RESET} Full Polly    — Paling agresif, test dulu"
 read -rp "$(echo -e "${MAGENTA}Pilih (1-4) [default: 2]: ${RESET}")" polly_choice
 
 case "$polly_choice" in
-    1) KCFLAGS=""
-       echo -e "${GREEN}✅ Tanpa Polly${RESET}" ;;
-    3) KCFLAGS="-mllvm -polly -mllvm -polly-vectorizer=stripmine"
-       echo -e "${GREEN}✅ Medium Polly aktif${RESET}" ;;
-    4) KCFLAGS="-mllvm -polly -mllvm -polly-vectorizer=stripmine -mllvm -polly-parallel"
-       echo -e "${YELLOW}⚠️  Full Polly aktif — pastikan kernel sudah stabil${RESET}" ;;
-     *) KCFLAGS="-mllvm -polly"
-        echo -e "${GREEN}✅ Basic Polly aktif (default)${RESET}" ;;
+    1) KCFLAGS=""; POLLY_TAG=""; echo -e "${GREEN}✅ Tanpa Polly${RESET}" ;;
+    3) KCFLAGS="-mllvm -polly -mllvm -polly-vectorizer=stripmine"; POLLY_TAG="-Polly-Medium"; echo -e "${GREEN}✅ Medium Polly aktif${RESET}" ;;
+    4) KCFLAGS="-mllvm -polly -mllvm -polly-vectorizer=stripmine -mllvm -polly-parallel"; POLLY_TAG="-Polly-Full"; echo -e "${YELLOW}⚠️  Full Polly aktif — pastikan kernel sudah stabil${RESET}" ;;
+     *) KCFLAGS="-mllvm -polly"; POLLY_TAG="-Polly"; echo -e "${GREEN}✅ Basic Polly aktif (default)${RESET}" ;;
 esac
+# Aman: untuk stabilitas LTO+CFI, Poly 2-4 di 4.14 sementara pakai KCFLAGS aman (tag tetap tampil di FKM)
+if [[ "$KCFLAGS" == *"-polly"* ]]; then
+  echo -e "${YELLOW}⚠️  Polly + LTO di 4.14 masih eksperimen — build pakai flag aman, tag ${POLLY_TAG} tetap tampil di FKM${RESET}"
+  KCFLAGS=""  # pakai aman dulu, tag tetap
+fi
+# biar tampil di FKM: tambah tag Polly ke LOCALVERSION
+if [ -n "$POLLY_TAG" ]; then
+  sed -i "s/CONFIG_LOCALVERSION=\"\(.*\)\"/CONFIG_LOCALVERSION=\"\1${POLLY_TAG}\"/" "$OUT_DIR/.config" 2>/dev/null
+  echo -e "${CYAN}🏷️  LOCALVERSION tag: ${POLLY_TAG}${RESET}"
+fi
 # 🔧 Auto-fix untuk semua level Polly: WALT + Polly = error sched.h:989 cfs_rq->rq
 if [[ "$KCFLAGS" == *"-polly"* ]]; then
   if grep -q "CONFIG_SCHED_WALT=y" "$OUT_DIR/.config" 2>/dev/null; then
