@@ -156,13 +156,25 @@ if [ -d "$AK3_DIR" ]; then
 fi
 
 # =====================================================================
-# 🧹 Bersihkan Build Lama
+# 🧹 Bersihkan Build Lama (FAST mode: skip jika FAST=1)
 # =====================================================================
-echo -e "${CYAN}🧹 Membersihkan build lama...${RESET}"
-make -C "$KERNEL_DIR" O="$OUT_DIR" clean &>/dev/null
-rm -rf "$OUT_DIR"
-mkdir -p "$OUT_DIR"
-rm -f "$BUILD_LOG"
+if [ "${FAST:-0}" = "1" ] || [ "$1" = "--fast" ]; then
+  echo -e "${CYAN}⚡ FAST mode: skip clean, pakai ccache + incremental${RESET}"
+  mkdir -p "$OUT_DIR"
+  export USE_CCACHE=1
+  export CCACHE_DIR="${CCACHE_DIR:-$HOME/.ccache}"
+  export CCACHE_EXEC="$(command -v ccache 2>/dev/null || echo ccache)"
+  ccache -M 10G 2>/dev/null; ccache -z 2>/dev/null
+else
+  echo -e "${CYAN}🧹 Membersihkan build lama...${RESET}"
+  make -C "$KERNEL_DIR" O="$OUT_DIR" clean &>/dev/null
+  rm -rf "$OUT_DIR"
+  mkdir -p "$OUT_DIR"
+  rm -f "$BUILD_LOG"
+fi
+# Fast flags
+if command -v ccache >/dev/null 2>&1; then export CC="ccache clang"; export USE_CCACHE=1; fi
+export KBUILD_BUILD_TIMESTAMP="$(date)"
 
 # =====================================================================
 # ⚙️ Generate Defconfig
@@ -183,6 +195,7 @@ read -rp "$(echo -e "${MAGENTA}🧭 Ingin buka menuconfig sebelum build? (y/n): 
 # =====================================================================
 # 🔥 Pilih Level Optimasi Polly (FoxeClang)
 # =====================================================================
+echo -e "${YELLOW}⚡ Build cepat: pakai ${GREEN}FAST=1 $0 --fast${RESET} untuk incremental + ccache (hemat 70%)"
 echo -e "${YELLOW}🔥 Pilih level optimasi Polly:${RESET}"
 echo -e "  ${CYAN}1)${RESET} Tanpa Polly   — Build standar"
 echo -e "  ${CYAN}2)${RESET} Basic Polly   — Aman, rekomendasi daily build"
