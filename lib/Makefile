@@ -8,6 +8,8 @@ ORIG_CFLAGS := $(KBUILD_CFLAGS)
 KBUILD_CFLAGS = $(subst $(CC_FLAGS_FTRACE),,$(ORIG_CFLAGS))
 endif
 
+# Fix LTO+Polly+CFI: per-file handled below
+
 # These files are disabled because they produce lots of non-interesting and/or
 # flaky coverage that is not a function of syscall inputs. For example,
 # rbtree can be global and individual rotations don't correlate with inputs.
@@ -36,12 +38,21 @@ lib-y := ctype.o string.o vsprintf.o cmdline.o \
 	 is_single_threaded.o plist.o decompress.o kobject_uevent.o \
 	 earlycpio.o seq_buf.o siphash.o \
 	 nmi_backtrace.o nodemask.o win_minmax.o
-# Polly 2-4 aman: beberapa file lib mis-optimizes dengan LTO+Polly (mdm/esoc)
-CFLAGS_win_minmax.o := -O2 -fno-lto -fno-sanitize=cfi -mllvm -polly=false
-CFLAGS_string.o := -O2 -fno-lto -fno-sanitize=cfi -mllvm -polly=false
-CFLAGS_vsprintf.o := -O2 -fno-lto -fno-sanitize=cfi -mllvm -polly=false
-CFLAGS_timerqueue.o := -O2 -fno-lto -fno-sanitize=cfi -mllvm -polly=false
-CFLAGS_siphash.o := -O2 -fno-lto -fno-sanitize=cfi -mllvm -polly=false
+# Polly 2-4 aman: beberapa file lib mis-optimizes dengan LTO+Polly
+CFLAGS_REMOVE_win_minmax.o = -mllvm -polly% -mllvm -polly-vectorizer% -mllvm -polly-parallel% -mllvm -polly-run-inliner% -mllvm -polly-ast-use-context% -mllvm -polly-detect-keep-going% -mllvm -polly-invariant-load-hoisting% -mllvm -inline-threshold% -mllvm -inlinehint-threshold% -mllvm -polly-loopfusion% -mllvm -polly-reschedule% -mllvm -polly-postopts%
+CFLAGS_win_minmax.o += -fno-lto -fno-sanitize=cfi
+CFLAGS_REMOVE_string.o = -mllvm -polly% -mllvm -polly-vectorizer% -mllvm -polly-parallel% -mllvm -polly-run-inliner% -mllvm -polly-ast-use-context% -mllvm -polly-detect-keep-going% -mllvm -polly-invariant-load-hoisting% -mllvm -inline-threshold% -mllvm -inlinehint-threshold% -mllvm -polly-loopfusion% -mllvm -polly-reschedule% -mllvm -polly-postopts%
+CFLAGS_string.o += -fno-lto -fno-sanitize=cfi
+CFLAGS_REMOVE_vsprintf.o = -mllvm -polly% -mllvm -polly-vectorizer% -mllvm -polly-parallel% -mllvm -polly-run-inliner% -mllvm -polly-ast-use-context% -mllvm -polly-detect-keep-going% -mllvm -polly-invariant-load-hoisting% -mllvm -inline-threshold% -mllvm -inlinehint-threshold% -mllvm -polly-loopfusion% -mllvm -polly-reschedule% -mllvm -polly-postopts%
+CFLAGS_vsprintf.o += -fno-lto -fno-sanitize=cfi
+CFLAGS_REMOVE_timerqueue.o = -mllvm -polly% -mllvm -polly-vectorizer% -mllvm -polly-parallel% -mllvm -polly-run-inliner% -mllvm -polly-ast-use-context% -mllvm -polly-detect-keep-going% -mllvm -polly-invariant-load-hoisting% -mllvm -inline-threshold% -mllvm -inlinehint-threshold% -mllvm -polly-loopfusion% -mllvm -polly-reschedule% -mllvm -polly-postopts%
+CFLAGS_timerqueue.o += -fno-lto -fno-sanitize=cfi
+CFLAGS_REMOVE_siphash.o = -mllvm -polly% -mllvm -polly-vectorizer% -mllvm -polly-parallel% -mllvm -polly-run-inliner% -mllvm -polly-ast-use-context% -mllvm -polly-detect-keep-going% -mllvm -polly-invariant-load-hoisting% -mllvm -inline-threshold% -mllvm -inlinehint-threshold% -mllvm -polly-loopfusion% -mllvm -polly-reschedule% -mllvm -polly-postopts%
+CFLAGS_siphash.o += -fno-lto -fno-sanitize=cfi
+CFLAGS_REMOVE_show_mem.o = -mllvm -polly% -mllvm -polly-vectorizer% -mllvm -polly-parallel% -mllvm -polly-run-inliner% -mllvm -polly-ast-use-context% -mllvm -polly-detect-keep-going% -mllvm -polly-invariant-load-hoisting% -mllvm -inline-threshold% -mllvm -inlinehint-threshold% -mllvm -polly-loopfusion% -mllvm -polly-reschedule% -mllvm -polly-postopts%
+CFLAGS_show_mem.o += -fno-lto -fno-sanitize=cfi
+CFLAGS_REMOVE_lockref.o = -mllvm -polly% -mllvm -polly-vectorizer% -mllvm -polly-parallel% -mllvm -polly-run-inliner% -mllvm -polly-ast-use-context% -mllvm -polly-detect-keep-going% -mllvm -polly-invariant-load-hoisting% -mllvm -inline-threshold% -mllvm -inlinehint-threshold% -mllvm -polly-loopfusion% -mllvm -polly-reschedule% -mllvm -polly-postopts%
+CFLAGS_lockref.o += -fno-lto -fno-sanitize=cfi
 
 lib-$(CONFIG_MMU) += ioremap.o
 lib-$(CONFIG_SMP) += cpumask.o
@@ -115,6 +126,9 @@ obj-$(CONFIG_DEBUG_OBJECTS) += debugobjects.o
 ifneq ($(CONFIG_HAVE_DEC_LOCK),y)
   lib-y += dec_and_lock.o
 endif
+
+# Global fix for LTO+Polly+CFI mis-optimization (mdm/esoc) - disable for all lib
+KBUILD_CFLAGS := $(filter-out -mllvm -polly% -mllvm -inline-threshold% -mllvm -inlinehint-threshold% -flto% -fsanitize=cfi%, $(KBUILD_CFLAGS))
 
 obj-$(CONFIG_BITREVERSE) += bitrev.o
 obj-$(CONFIG_RATIONAL)	+= rational.o
@@ -279,3 +293,7 @@ obj-$(CONFIG_SBITMAP) += sbitmap.o
 obj-$(CONFIG_PARMAN) += parman.o
 
 obj-y += crypto/
+CFLAGS_REMOVE_sha1.o = -mllvm -polly% -mllvm -polly-vectorizer% -mllvm -polly-parallel% -mllvm -polly-run-inliner% -mllvm -polly-ast-use-context% -mllvm -polly-detect-keep-going% -mllvm -polly-invariant-load-hoisting% -mllvm -inline-threshold% -mllvm -inlinehint-threshold% -mllvm -polly-loopfusion% -mllvm -polly-reschedule% -mllvm -polly-postopts%
+CFLAGS_sha1.o += -fno-lto -fno-sanitize=cfi
+CFLAGS_REMOVE_seq_buf.o = -mllvm -polly% -mllvm -polly-vectorizer% -mllvm -polly-parallel% -mllvm -polly-run-inliner% -mllvm -polly-ast-use-context% -mllvm -polly-detect-keep-going% -mllvm -polly-invariant-load-hoisting% -mllvm -inline-threshold% -mllvm -inlinehint-threshold% -mllvm -polly-loopfusion% -mllvm -polly-reschedule% -mllvm -polly-postopts%
+CFLAGS_seq_buf.o += -fno-lto -fno-sanitize=cfi

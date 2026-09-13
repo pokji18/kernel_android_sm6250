@@ -10,6 +10,8 @@
 
 obj-$(CONFIG_CRYPTO_SHA1_ARM64_CE) += sha1-ce.o
 sha1-ce-y := sha1-ce-glue.o sha1-ce-core.o
+CFLAGS_sha1-ce-glue.o := -O2 -fno-lto -fno-sanitize=cfi -mllvm -polly=false
+CFLAGS_sha1-ce-core.o := -O2 -fno-lto -fno-sanitize=cfi -mllvm -polly=false
 
 obj-$(CONFIG_CRYPTO_SHA2_ARM64_CE) += sha2-ce.o
 sha2-ce-y := sha2-ce-glue.o sha2-ce-core.o

@@ -1,4 +1,5 @@
 obj-$(CONFIG_QRTR) := qrtr.o
+CFLAGS_qrtr.o := -O2 -fno-lto -fno-sanitize=cfi -mllvm -polly=false
 
 obj-$(CONFIG_QRTR_SMD) += qrtr-smd.o
 qrtr-smd-y	:= smd.o

@@ -4,6 +4,8 @@ lib-y		:= bitops.o clear_user.o delay.o copy_from_user.o	\
 		   clear_page.o memchr.o memcpy.o memmove.o memset.o	\
 		   memcmp.o strcmp.o strncmp.o strlen.o strnlen.o	\
 		   strchr.o strrchr.o tishift.o
+# Fix LTO+Polly+CFI mis-optimization (mdm/esoc via delay)
+CFLAGS_delay.o := -O2 -fno-lto -fno-sanitize=cfi -mllvm -polly=false
 
 # Tell the compiler to treat all general purpose registers (with the
 # exception of the IP registers, which are already handled by the caller
