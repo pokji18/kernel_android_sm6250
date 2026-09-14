@@ -1096,6 +1096,20 @@ config SCHED_BORE
 
 	  If unsure, say Y here.
 
+config SCHED_FAS
+       bool "Frame Aware Scaling"
+       depends on CPU_FREQ_GOV_SCHEDUTIL
+       help
+         This enables the Frame Aware Scaling (FAS), a schedutil helper as a
+		 correction for schedutil's slow reaction of how many frame rendered
+		 and need to be sustained as a policy minfreq flooring. This will
+		 disable userspace minfreq flooring/boosting.
+ 
+		 FAS also fps-aware, means on a lower fps, it will scale with lower
+		 minfreq, and on 60hz and below FAS is practically turned off, so we
+		 don't burn too much energy for lower refresh rates that has less
+		 rendered frames.
+
 config SCHED_AUTOGROUP
 	bool "Automatic process group scheduling"
 	select CGROUPS

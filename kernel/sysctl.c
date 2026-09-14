@@ -124,8 +124,8 @@ static int __maybe_unused neg_one = -1;
 static int __maybe_unused neg_three = -3;
 
 static int zero;
+static int two = 2;
 static int __maybe_unused one = 1;
-static int __maybe_unused two = 2;
 static int __maybe_unused three = 3;
 static int __maybe_unused four = 4;
 static int int_max = INT_MAX;
@@ -505,6 +505,15 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= sched_little_cluster_coloc_fmin_khz_handler,
 		.extra1		= &zero,
 		.extra2		= &two_million,
+	},
+	{
+		.procname	= "sched_hr_limit_level",
+		.data		= &sysctl_sched_hr_limit_level,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &two,
 	},
 #endif
 	{

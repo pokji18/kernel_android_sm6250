@@ -156,6 +156,14 @@ unsigned int sysctl_sched_use_walt_cpu_util = 1;
 unsigned int sysctl_sched_use_walt_task_util = 1;
 __read_mostly unsigned int sysctl_sched_walt_cpu_high_irqload =
     (10 * NSEC_PER_MSEC);
+
+/*
+ * DVFS headroom boost limit level:
+ *   0: no limit applied
+ *   1: cap headroom at 20% of CPU capacity
+ *   2: cap headroom at 20% of capacity AND 75% of utilization
+ */
+unsigned int sysctl_sched_hr_limit_level; /* 0 = unchanged curve by default */
 #endif
 
 #ifdef CONFIG_SCHED_BORE
