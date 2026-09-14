@@ -1658,9 +1658,24 @@ static int expand_inode_data(struct inode *inode, loff_t offset,
 		return 0;
 
 	if (f2fs_is_pinned_file(inode)) {
-		block_t len = (map.m_len >> sbi->log_blocks_per_seg) <<
-					sbi->log_blocks_per_seg;
+		block_t len;
 		block_t done = 0;
+
+		/*
+		 * Round down the start offset to a section boundary when it
+		 * is not section-aligned, and recompute the length so that a
+		 * newly-allocated section can be fully utilized instead of
+		 * leaving dirty segments behind.
+		 */
+		if (map.m_lblk % sbi->blocks_per_seg) {
+			map.m_lblk = rounddown(map.m_lblk, sbi->blocks_per_seg);
+			map.m_len = pg_end - map.m_lblk;
+			if (off_end)
+				map.m_len++;
+		}
+
+		len = (map.m_len >> sbi->log_blocks_per_seg) <<
+					sbi->log_blocks_per_seg;
 
 		if (map.m_len % sbi->blocks_per_seg)
 			len += sbi->blocks_per_seg;
