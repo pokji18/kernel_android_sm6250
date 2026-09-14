@@ -582,4 +582,9 @@ static inline bool lmk_kill_possible(void)
 	return false;
 }
 #endif
+extern void should_shrink_async(gfp_t gfp_mask, int nid,
+			struct mem_cgroup *memcg, int priority, bool *bypass);
+extern unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+				 struct mem_cgroup *memcg,
+				 int priority);
 #endif	/* __MM_INTERNAL_H */
