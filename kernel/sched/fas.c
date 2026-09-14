@@ -9,6 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/cpufreq.h>
 #include <linux/cpu.h>
 #include <linux/ktime.h>
@@ -228,7 +229,7 @@ static struct input_handler fas_input_handler = {
 	.disconnect	= fas_input_disconnect,
 	.name		= "fas",
 	.id_table	= fas_ids,
-}
+};
 
 /* Called from KGSL when a cmdbatch retires (GPU frame completed) */
 void kgsl_cmdbatch_retired_hook(void)
