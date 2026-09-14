@@ -1,6 +1,6 @@
 #!/bin/bash
 # =====================================================================
-# 💫 Build Script — HYBRID MODE
+# 💫 Build Script — HYBRID MODE (Portable: ServerHive, Codespace, Local, CI)
 # 🔧 Created by Michikoextv2
 # =====================================================================
 
@@ -15,189 +15,77 @@ RESET='\033[0m'
 BOLD='\033[1m'
 
 # =====================================================================
-# 📂 Direktori & Variabel Utama
+# 📂 Auto-detect paths (portable: ServerHive, Codespace, Local, CI)
 # =====================================================================
-KERNEL_DIR="$(pwd)"
-OUT_DIR="$KERNEL_DIR/out"
-# --- deteksi clang kamu (NezukoClang) ---
-CLANG_DIR="${CLANG_DIR:-}"
+# Kernel dir = direktori script
+KERNEL_DIR="${KERNEL_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+OUT_DIR="${OUT_DIR:-$KERNEL_DIR/out}"
+ARCH="${ARCH:-arm64}"
+BUILD_LOG="${BUILD_LOG:-$KERNEL_DIR/build.log}"
+DATE=$(date +"%Y%m%d-%H%M%S")
+CPU_CORES=$(nproc --all)
+
+# =====================================================================
+# 🔧 Auto-detect clang (absolute path: portable ServerHive, Codespace, Local, CI)
+# =====================================================================
 if [ -z "$CLANG_DIR" ] || [ ! -f "$CLANG_DIR/bin/clang" ]; then
-  for cand in "$KERNEL_DIR/../clang" "$KERNEL_DIR/../clang/NezukoClang" "$KERNEL_DIR/../NezukoClang" "/serverhive1/nezuko330/clang/NezukoClang" "/tmp/nezuko-pubtest/NezukoClang" "$(dirname $(command -v clang 2>/dev/null) 2>/dev/null | xargs dirname 2>/dev/null)"; do
-    [ -f "$cand/bin/clang" ] && CLANG_DIR="$cand" && break
-  done
+    for cand in \
+        "$(realpath "$KERNEL_DIR/../clang/NezukoClang" 2>/dev/null)" \
+        "$(realpath "$KERNEL_DIR/../NezukoClang" 2>/dev/null)" \
+        "$(realpath "$HOME/clang/NezukoClang" 2>/dev/null)" \
+        "/opt/clang/NezukoClang" \
+        "/usr/local/clang/NezukoClang" \
+        "$(realpath "$(dirname "$(command -v clang 2>/dev/null)" 2>/dev/null | xargs dirname 2>/dev/null)" 2>/dev/null)"; do
+        [ -f "$cand/bin/clang" ] && CLANG_DIR="$cand" && break
+    done
 fi
-# fallback + auto-download NezukoClang jika belum ada (biar ikut repo saat clone)
+
+# Fallback: clang dari PATH (absolute)
+if [ -z "$CLANG_DIR" ] || [ ! -f "$CLANG_DIR/bin/clang" ]; then
+    CLANG_DIR="$(realpath "$(dirname "$(command -v clang 2>/dev/null)" 2>/dev/null | xargs dirname 2>/dev/null)" 2>/dev/null)"
+fi
+
+# Validasi
 if [ ! -f "$CLANG_DIR/bin/clang" ]; then
-  CLANG_DIR="$(realpath "$KERNEL_DIR/../clang/install" 2>/dev/null || echo "$KERNEL_DIR/../clang")"
+    echo -e "${RED}❌ Clang tidak ditemukan! Set CLANG_DIR atau install clang.${RESET}"
+    exit 1
 fi
-if [ ! -f "$CLANG_DIR/bin/clang" ]; then
-  echo -e "${YELLOW}⚠️ Clang tidak ada — auto-clone NezukoClang 23.1.2 (Polly) ...${RESET}"
-  mkdir -p "$KERNEL_DIR/../clang"
-  git clone --depth 1 https://github.com/pokji18/NezukoClang.git "$KERNEL_DIR/../clang/NezukoClang" 2>&1 | tail -n 3
-  for cand in "$KERNEL_DIR/../clang/NezukoClang" "/tmp/nezuko-pubtest/NezukoClang" "/serverhive1/nezuko330/clang/NezukoClang"; do [ -f "$cand/bin/clang" ] && CLANG_DIR="$cand" && break; done
-  # patch agar --version tampil link + PGO/LTO/ThinLTO/BOLT/GCC seperti di FKM
-  if [ -f "$CLANG_DIR/bin/clang-23" ] && ! "$CLANG_DIR/bin/clang" --version 2>&1 | grep -q "PGO"; then
-    [ -f "$CLANG_DIR/bin/clang-23.real" ] || cp "$CLANG_DIR/bin/clang-23" "$CLANG_DIR/bin/clang-23.real"
-    cat > "$CLANG_DIR/bin/clang-23" << 'EOSWRAP'
-#!/bin/bash
-DIR="$(dirname "$0")"
-REAL="$DIR/clang-23.real"
-[ -f "$REAL" ] || REAL="$DIR/clang.real"
-if [[ "$*" == *"--version"* ]] || [[ "$*" == *" -v"* ]] || [[ "$*" == "-v" ]]; then
-  VER=$("$REAL" --version 2>&1 | head -n1)
-  [[ "$VER" != *"PGO"* ]] && VER="$VER PGO LTO ThinLTO BOLT GCC64 GCC32"
-  [[ "$VER" != *"llvm-project"* ]] && VER="$VER (https://github.com/llvm/llvm-project)"
-  [[ "$VER" != *"NezukoClang"* ]] && VER="NezukoClang $VER"
-  if [[ "$*" == *" -v"* ]] || [[ "$*" == "-v" ]]; then
-    echo "$VER"
-    "$REAL" -v 2>&1 | tail -n +2
-    exit 0
-  fi
-  echo "$VER"
-  "$REAL" --version 2>&1 | tail -n +2
-  exit 0
-fi
-exec "$REAL" "$@"
-EOSWRAP
-    chmod +x "$CLANG_DIR/bin/clang-23"
-  fi
-  # fallback download tarball jika git gagal (network)
-  if [ ! -f "$CLANG_DIR/bin/clang" ]; then
-    echo -e "${YELLOW} git clone gagal, coba download tarball ...${RESET}"
-    curl -LSs https://github.com/pokji18/NezukoClang/releases/download/23.1.2/NezukoClang-23.1.2.tar.zst 2>&1 | head -n 2
-  fi
-fi
-GCC32_DIR="${GCC32_DIR:-$(realpath "$KERNEL_DIR/../gcc32/gcc-arm" 2>/dev/null || echo "$KERNEL_DIR/../arm-linux-androideabi-4.9")}"
-# auto-cari GCC32 jika path utama tidak ada
-if [ ! -d "$GCC32_DIR/bin" ]; then
-  for sp in "$CLANG_DIR/arm-linux-androideabi-4.9" "/serverhive1/nezuko330/clang/NezukoClang/arm-linux-androideabi-4.9" "/tmp/nezuko-pubtest/NezukoClang/arm-linux-androideabi-4.9" "$KERNEL_DIR/../arm-linux-androideabi-4.9"; do
-    [ -d "$sp/bin" ] && [ -x "$sp/bin/arm-linux-androideabi-gcc" ] && GCC32_DIR="$sp" && break
-  done
-fi
+
+# =====================================================================
+# 🌐 AnyKernel3 config
+# =====================================================================
 AK3_REPO="https://github.com/Michikoextv2/AnyKernel3-miatoll.git"
 AK3_BRANCH="miatoll"
 AK3_DIR="$KERNEL_DIR/AnyKernel3"
-ARCH="arm64"
-BUILD_LOG="$KERNEL_DIR/build.log"
-DATE="$(date +"%Y-%m-%d_%H-%M")"
 
 # =====================================================================
-# 🧠 Info Sistem
-# =====================================================================
-CPU_CORES=$(nproc --all)
-HOST_OS=$(uname -o)
-HOST_KERNEL=$(uname -r)
-HOST_CPU=$(grep -m1 "model name" /proc/cpuinfo | cut -d: -f2 | sed 's/^ //')
-# --- patch FKM: pastikan clang --version tampil PGO/LTO/ThinLTO/BOLT/GCC + link ---
-if [ -f "$CLANG_DIR/bin/clang-23" ] && ! "$CLANG_DIR/bin/clang" --version 2>&1 | grep -q "PGO"; then
-  [ -f "$CLANG_DIR/bin/clang-23.real" ] || cp "$CLANG_DIR/bin/clang-23" "$CLANG_DIR/bin/clang-23.real"
-  cat > "$CLANG_DIR/bin/clang-23" << 'EOSFKM'
-#!/bin/bash
-DIR="$(dirname "$0")"
-REAL="$DIR/clang-23.real"
-[ -f "$REAL" ] || REAL="$DIR/clang.real"
-if [[ "$*" == *"--version"* ]] || [[ "$*" == *" -v"* ]] || [[ "$*" == "-v" ]]; then
-  VER=$("$REAL" --version 2>&1 | head -n1)
-  [[ "$VER" != *"PGO"* ]] && VER="$VER PGO LTO ThinLTO BOLT GCC64 GCC32"
-  [[ "$VER" != *"llvm-project"* ]] && VER="$VER (https://github.com/llvm/llvm-project)"
-  [[ "$VER" != *"NezukoClang"* ]] && VER="NezukoClang $VER"
-  if [[ "$*" == *" -v"* ]] || [[ "$*" == "-v" ]]; then
-    echo "$VER"
-    "$REAL" -v 2>&1 | tail -n +2
-    exit 0
-  fi
-  echo "$VER"
-  "$REAL" --version 2>&1 | tail -n +2
-  exit 0
-fi
-exec "$REAL" "$@"
-EOSFKM
-  chmod +x "$CLANG_DIR/bin/clang-23"
-fi
-# --- info toolchain PGO/LTO/Polly ---
-TOOLCHAIN_VERSION=$("$CLANG_DIR/bin/clang" --version 2>/dev/null | head -n1)
-CLANG_LLD_VER=$("$CLANG_DIR/bin/ld.lld" --version 2>/dev/null | head -n1 | xargs)
-if [ -f "$CLANG_DIR/bin/llvm-profdata" ]; then CLANG_PGO_INFO="✅ PGO (llvm-profdata)"; else CLANG_PGO_INFO="❌ PGO tidak ada"; fi
-if [ -f "$CLANG_DIR/lib/libLTO.so" ] || [ -f "$CLANG_DIR/lib64/libLTO.so" ] || echo "$TOOLCHAIN_VERSION" | grep -qi "clang"; then CLANG_LTO_INFO="✅ LTO/ThinLTO (ld.lld)"; else CLANG_LTO_INFO="❌ LTO tidak ada"; fi
-if strings "$CLANG_DIR/bin/clang-23.real" 2>/dev/null | grep -qi "polly" || strings "$CLANG_DIR/bin/clang" 2>/dev/null | grep -qi "polly" || ls "$CLANG_DIR"/lib/*Polly* 1>/dev/null 2>&1; then CLANG_POLLY_INFO="✅ Polly (built-in)"; else CLANG_POLLY_INFO="❌ Polly tidak ada"; fi
-if [ -f "$CLANG_DIR/bin/llvm-bolt" ]; then CLANG_BOLT_INFO="✅ BOLT"; else CLANG_BOLT_INFO="❌ BOLT tidak ada"; fi
-
-clear
-echo -e "${MAGENTA}${BOLD}=============================================================="
-echo -e "  💫 MICHIKO Build Script — FINAL HYBRID MODE"
-echo -e "==============================================================${RESET}"
-echo -e "${CYAN}👤 Dibuat oleh   :${RESET} ${GREEN}Michikoextv2${RESET}"
-echo -e "${YELLOW}🧠 CPU           :${RESET} ${GREEN}${HOST_CPU}${RESET}"
-echo -e "${YELLOW}💻 Host          :${RESET} ${GREEN}${HOST_OS} (${HOST_KERNEL})${RESET}"
-echo -e "${YELLOW}🧵 CPU Cores     :${RESET} ${GREEN}${CPU_CORES}${RESET}"
-echo -e "${YELLOW}🧰 Toolchain     :${RESET} ${GREEN}${TOOLCHAIN_VERSION}${RESET}"
-echo -e "${YELLOW}   ├─ LTO         :${RESET} ${GREEN}${CLANG_LTO_INFO} | ${CLANG_LLD_VER}${RESET}"
-echo -e "${YELLOW}   ├─ PGO         :${RESET} ${GREEN}${CLANG_PGO_INFO}${RESET}"
-echo -e "${YELLOW}   └─ Opt         :${RESET} ${GREEN}${CLANG_POLLY_INFO} | ${CLANG_BOLT_INFO}${RESET}"
-echo -e "${YELLOW}📄 Build Log     :${RESET} ${GREEN}${BUILD_LOG}${RESET}"
-echo -e "${MAGENTA}==============================================================${RESET}\n"
-
-# =====================================================================
-# 🔍 Cek Toolchain
-# =====================================================================
-if [ ! -f "$CLANG_DIR/bin/clang" ]; then
-    echo -e "${RED}❌ Clang tidak ditemukan di: $CLANG_DIR${RESET}"
-    echo -e "${YELLOW}   Pastikan folder 'clang/install/' ada di direktori induk.${RESET}"
-    exit 1
-fi
-
-if [ ! -f "$CLANG_DIR/bin/ld.lld" ]; then
-    echo -e "${YELLOW}⚠️  ld.lld tidak ditemukan di Clang, menggunakan system lld...${RESET}"
-    sudo apt install -y lld &>/dev/null
-fi
-
-if [ ! -d "$GCC32_DIR/bin" ]; then
-    echo -e "${RED}❌ GCC ARM32 tidak ditemukan di: $GCC32_DIR${RESET}"
-    echo -e "${YELLOW}   Pastikan folder 'gcc32/gcc-arm/bin/' ada dan berisi arm-eabi-*.${RESET}"
-    exit 1
-fi
-
-export PATH="$CLANG_DIR/bin:$GCC32_DIR/bin:$PATH"
-CLANG_VERSION=$("$CLANG_DIR/bin/clang" --version | head -n 1)
-echo -e "${YELLOW}🧰 Toolchain     :${RESET} ${GREEN}${CLANG_VERSION}${RESET}\n"
-
-# =====================================================================
-# 🌿 Environment Variables
-# =====================================================================
-export USE_CCACHE=1
-export KBUILD_BUILD_HOST="xyz"
-export KBUILD_BUILD_USER="standalone"
-
-# =====================================================================
-# 🔍 Auto Detect Defconfig — arch/arm64/configs/vendor/xiaomi/
+# 📂 Defconfig detection
 # =====================================================================
 CONFIG_VENDOR_PATH="$KERNEL_DIR/arch/arm64/configs/vendor/xiaomi"
-
 if [ ! -d "$CONFIG_VENDOR_PATH" ]; then
     echo -e "${RED}❌ Folder vendor defconfig tidak ditemukan: $CONFIG_VENDOR_PATH${RESET}"
     exit 1
 fi
 
 mapfile -t DEFCONFIGS < <(ls "$CONFIG_VENDOR_PATH" | grep -E "defconfig$")
-
 if [ ${#DEFCONFIGS[@]} -eq 0 ]; then
     echo -e "${RED}❌ Tidak ada defconfig ditemukan di $CONFIG_VENDOR_PATH${RESET}"
     exit 1
 elif [ ${#DEFCONFIGS[@]} -eq 1 ]; then
-    DEFCONFIG="vendor/xiaomi/${DEFCONFIGS[0]}"
+    DEFCONFIG="${DEFCONFIGS[0]}"
     echo -e "${GREEN}✅ Ditemukan satu defconfig: ${DEFCONFIG}${RESET}"
 else
     echo -e "${YELLOW}📋 Pilih defconfig yang ingin digunakan:${RESET}"
-    select RAW_DEFCONFIG in "${DEFCONFIGS[@]}"; do
-        if [[ -n "$RAW_DEFCONFIG" ]]; then
-            DEFCONFIG="vendor/xiaomi/${RAW_DEFCONFIG}"
-            echo -e "${GREEN}✅ Menggunakan defconfig: $DEFCONFIG${RESET}"
+    select opt in "${DEFCONFIGS[@]}"; do
+        if [ -n "$opt" ]; then
+            DEFCONFIG="$opt"
             break
         else
-            echo -e "${RED}❌ Pilihan tidak valid, coba lagi.${RESET}"
+            echo -e "${RED}❌ Pilihan tidak valid${RESET}"
         fi
     done
 fi
+echo -e "${GREEN}✅ Menggunakan defconfig: $DEFCONFIG${RESET}"
 
 # =====================================================================
 # 🗑️ Hapus AnyKernel3 Lama (jika ada)
@@ -224,12 +112,13 @@ else
   mkdir -p "$OUT_DIR"
   rm -f "$BUILD_LOG"
 fi
+
 # Fast flags
 if command -v ccache >/dev/null 2>&1; then export CC="ccache clang"; export USE_CCACHE=1; fi
 export KBUILD_BUILD_TIMESTAMP="$(date)"
 
 # =====================================================================
-# ⚙️ Generate Defconfig
+# ⚙️ Generate Defconfig (DULU)
 # =====================================================================
 echo -e "${YELLOW}⚙️  Menghasilkan defconfig (${DEFCONFIG})...${RESET}"
 make -C "$KERNEL_DIR" O="$OUT_DIR" ARCH="$ARCH" "$DEFCONFIG" 2>&1 | tee -a "$BUILD_LOG"
@@ -239,10 +128,17 @@ if [ ${PIPESTATUS[0]} -ne 0 ]; then
 fi
 
 # =====================================================================
-# 🧭 Menuconfig Opsional
+# 🧭 Menuconfig Opsional (SETELAH defconfig)
 # =====================================================================
 read -rp "$(echo -e "${MAGENTA}🧭 Ingin buka menuconfig sebelum build? (y/n): ${RESET}")" menu
-[[ "$menu" =~ ^[Yy]$ ]] && make -C "$KERNEL_DIR" O="$OUT_DIR" ARCH="$ARCH" menuconfig
+
+run_menuconfig() {
+    export TERM=xterm-256color
+    export LINES=40
+    export COLUMNS=120
+    script -q -c "make -C \"$KERNEL_DIR\" O=\"$OUT_DIR\" ARCH=\"$ARCH\" menuconfig" /dev/null
+}
+[[ "$menu" =~ ^[Yy]$ ]] && run_menuconfig
 
 # =====================================================================
 # 🔥 Pilih Level Optimasi Polly (FoxeClang)
@@ -261,23 +157,19 @@ case "$polly_choice" in
     4) KCFLAGS="-mllvm -polly -mllvm -polly-vectorizer=stripmine -mllvm -polly-parallel"; POLLY_TAG="-Polly-Full"; echo -e "${YELLOW}⚠️  Full Polly aktif — pastikan kernel sudah stabil${RESET}" ;;
      *) KCFLAGS="-mllvm -polly"; POLLY_TAG="-Polly"; echo -e "${GREEN}✅ Basic Polly aktif (default)${RESET}" ;;
 esac
-# Aman: untuk stabilitas LTO+CFI, Poly 2-4 di 4.14 sementara pakai KCFLAGS aman (tag tetap tampil di FKM)
 if [[ "$KCFLAGS" == *"-polly"* ]]; then
   echo -e "${YELLOW}⚠️  Polly + LTO di 4.14 masih eksperimen — build pakai flag aman, tag ${POLLY_TAG} tetap tampil di FKM${RESET}"
-  KCFLAGS=""  # pakai aman dulu, tag tetap
+  KCFLAGS=""
 fi
-# biar tampil di FKM: tambah tag Polly ke LOCALVERSION
 if [ -n "$POLLY_TAG" ]; then
   sed -i "s/CONFIG_LOCALVERSION=\"\(.*\)\"/CONFIG_LOCALVERSION=\"\1${POLLY_TAG}\"/" "$OUT_DIR/.config" 2>/dev/null
   echo -e "${CYAN}🏷️  LOCALVERSION tag: ${POLLY_TAG}${RESET}"
 fi
-# 🔧 Auto-fix untuk semua level Polly: WALT + Polly = error sched.h:989 cfs_rq->rq
 if [[ "$KCFLAGS" == *"-polly"* ]]; then
   if grep -q "CONFIG_SCHED_WALT=y" "$OUT_DIR/.config" 2>/dev/null; then
     sed -i 's/CONFIG_SCHED_WALT=y/# CONFIG_SCHED_WALT is not set/' "$OUT_DIR/.config"
     echo -e "${YELLOW}🔧 Auto-fix: SCHED_WALT dimatikan (Polly incompatible sched.h:989)${RESET}"
   fi
-  # pastikan IPC_LOGGING ada (untuk esoc/mdm undefined)
   grep -q "CONFIG_IPC_LOGGING=y" "$OUT_DIR/.config" 2>/dev/null || echo "CONFIG_IPC_LOGGING=y" >> "$OUT_DIR/.config"
   grep -q "CONFIG_ESOC_MDM_4x=y" "$OUT_DIR/.config" 2>/dev/null || echo "CONFIG_ESOC_MDM_4x=y" >> "$OUT_DIR/.config"
   yes '' | make -C "$KERNEL_DIR" O="$OUT_DIR" ARCH="$ARCH" olddefconfig 2>&1 | tail -n2 | tee -a "$BUILD_LOG"
@@ -305,7 +197,7 @@ make -j"$CPU_CORES" \
     LLVM_IAS=1 \
     CLANG_TRIPLE="aarch64-linux-gnu-" \
     CROSS_COMPILE="aarch64-linux-gnu-" \
-    CROSS_COMPILE_ARM32="arm-linu-gnueabi-" \
+    CROSS_COMPILE_ARM32="arm-linux-gnueabi-" \
     ${KCFLAGS:+KCFLAGS="$KCFLAGS"} \
     2>&1 | tee -a "$BUILD_LOG"
 
@@ -344,9 +236,7 @@ if [ ! -d "$AK3_DIR" ]; then
     exit 1
 fi
 
-# Copy artifacts ke root AnyKernel3/
 echo -e "${YELLOW}📂 Menyalin kernel artifacts ke root AnyKernel3/...${RESET}"
-
 cp "$IMAGE" "$AK3_DIR/Image.gz"
 echo -e "  ${GREEN}✅ Image.gz disalin${RESET}"
 
@@ -364,7 +254,6 @@ else
     echo -e "  ${YELLOW}⚠️  dtbo.img tidak ditemukan, dilewati${RESET}"
 fi
 
-# Buat flashable ZIP
 ZIP_NAME="Super-Kernel-${DATE}.zip"
 cd "$AK3_DIR" || exit 1
 zip -r9 "$KERNEL_DIR/$ZIP_NAME" . -x "*.git*" 2>&1 | tee -a "$BUILD_LOG"
