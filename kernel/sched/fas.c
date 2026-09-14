@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Frame Aware Scaling (FAS) - Simplified for SM6250
+ * Frame Aware Scaling (FAS) - SM6250 (miatoll)
  * Based on original FAS by deutereum <fawwazzuladhim700@gmail.com>
- * Adapted for kernel 4.14 without display refresh rate dependency
+ * Adapted from IzumiYouka/android_kernel_xiaomi_sm8250
  */
 
 #define pr_fmt(fmt) "fas: " fmt
@@ -16,6 +16,8 @@
 #include <linux/input.h>
 #include <linux/atomic.h>
 #include <linux/workqueue.h>
+#include <linux/kobject.h>
+#include <linux/sysfs.h>
 
 struct fas_cpu_sync {
 	int cpu;
@@ -31,10 +33,20 @@ static struct work_struct fas_boost_work;
 static struct delayed_work fas_boost_rem;
 
 static u64 fas_last_input_time;
+static unsigned int fas_active_fps = 0;
 static unsigned long fas_next_boost;
 static bool fas_enabled = true;
 
+/* Panel refresh rate (set via sysfs, default 120Hz for gaming) */
+static unsigned int fas_panel_fps = 120;
+
 #define FAS_MIN_INPUT_INTERVAL (150 * USEC_PER_MSEC)
+
+/* Stub for dsi_panel_get_refresh_rate - returns fas_panel_fps (set via sysfs) */
+unsigned int dsi_panel_get_refresh_rate(void)
+{
+	return fas_panel_fps;
+}
 
 static int fas_adjust_notify(struct notifier_block *nb, unsigned long val,
 			     void *data)
@@ -76,32 +88,53 @@ static void fas_do_boost_rem(struct work_struct *work)
 	for_each_possible_cpu(i)
 		per_cpu(fas_sync_info, i).boost_min = 0;
 
+	fas_active_fps = 0;
 	fas_update_policy_online();
 }
 
 static void fas_do_boost(struct work_struct *work)
 {
 	unsigned int i;
+	unsigned int fps = dsi_panel_get_refresh_rate();
 
 	if (!fas_enabled)
 		return;
 
+	/*
+	 * If same fps tier is already active, just re-arm the expiry
+	 * timer — no need to walk per-cpu data or update policies again.
+	 */
+	if (fps == fas_active_fps) {
+		mod_delayed_work(fas_wq, &fas_boost_rem,
+				 msecs_to_jiffies(fas_boost_ms));
+		return;
+	}
+
+	/* Non-blocking cancel — rem work only zeros boost_min, no harm if
+	 * it races and runs once more; next boost will overwrite anyway. */
 	cancel_delayed_work(&fas_boost_rem);
 
+	/* Set boost_min per-CPU based on current refresh rate.
+	 * SM6250 cluster layout:
+	 *   CPU 0-3: little (Kryo 460 Silver)
+	 *   CPU 4-6: big (Kryo 460 Gold)
+	 *   CPU 7: prime (Kryo 460 Prime)
+	 */
 	for_each_possible_cpu(i) {
 		struct fas_cpu_sync *s = &per_cpu(fas_sync_info, i);
 
-		if (i <= 3) {
-			s->boost_min = 1804800;
-		} else if (i <= 6) {
-			s->boost_min = 1056000;
-		} else if (i == 7) {
-			s->boost_min = 960000;
+		if (fps <= 90) {
+			/* <= 90Hz: boost little cores only */
+			s->boost_min = (i <= 3) ? 1401600 : 0;
 		} else {
-			s->boost_min = 0;
+			/* > 90Hz: boost little, big, and prime */
+			s->boost_min = (i <= 3) ? 1804800 :
+				       (i <= 6) ? 1056000 :
+				       (i == 7) ? 960000 : 0;
 		}
 	}
 
+	fas_active_fps = fps;
 	fas_update_policy_online();
 
 	queue_delayed_work(fas_wq, &fas_boost_rem,
@@ -195,7 +228,24 @@ static struct input_handler fas_input_handler = {
 	.disconnect	= fas_input_disconnect,
 	.name		= "fas",
 	.id_table	= fas_ids,
-};
+}
+
+/* Called from KGSL when a cmdbatch retires (GPU frame completed) */
+void kgsl_cmdbatch_retired_hook(void)
+{
+	if (!fas_enabled)
+		return;
+
+	if (dsi_panel_get_refresh_rate() <= 60)
+		return;
+
+	/* Ratelimit: don't boost more often than fas_boost_ms */
+	if (time_before(jiffies, fas_next_boost))
+		return;
+
+	fas_next_boost = jiffies + msecs_to_jiffies(fas_boost_ms);
+	fas_queue_boost();
+}
 
 static struct kobject *fas_kobj;
 
@@ -225,11 +275,40 @@ static ssize_t fas_enabled_store(struct kobject *kobj,
 	return count;
 }
 
+static ssize_t fas_panel_fps_show(struct kobject *kobj,
+				   struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", fas_panel_fps);
+}
+
+static ssize_t fas_panel_fps_store(struct kobject *kobj,
+				    struct kobj_attribute *attr,
+				    const char *buf, size_t count)
+{
+	unsigned int val;
+
+	if (kstrtouint(buf, 10, &val))
+		return -EINVAL;
+
+	/* Clamp to reasonable range */
+	if (val < 24 || val > 144)
+		return -EINVAL;
+
+	fas_panel_fps = val;
+	fas_active_fps = 0; /* Force re-evaluation on next boost */
+
+	return count;
+}
+
 static struct kobj_attribute fas_enabled_attr =
 	__ATTR(enabled, 0644, fas_enabled_show, fas_enabled_store);
 
+static struct kobj_attribute fas_panel_fps_attr =
+	__ATTR(panel_fps, 0644, fas_panel_fps_show, fas_panel_fps_store);
+
 static struct attribute *fas_attrs[] = {
 	&fas_enabled_attr.attr,
+	&fas_panel_fps_attr.attr,
 	NULL,
 };
 
@@ -256,3 +335,6 @@ static int __init fas_init(void)
 }
 late_initcall(fas_init);
 
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Frame Aware Scaling (FAS) for SM6250");
+MODULE_AUTHOR("deutereum <fawwazzuladhim700@gmail.com>");
