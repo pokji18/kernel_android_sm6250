@@ -242,7 +242,14 @@ fi
 # 🧭 Menuconfig Opsional
 # =====================================================================
 read -rp "$(echo -e "${MAGENTA}🧭 Ingin buka menuconfig sebelum build? (y/n): ${RESET}")" menu
-[[ "$menu" =~ ^[Yy]$ ]] && make -C "$KERNEL_DIR" O="$OUT_DIR" ARCH="$ARCH" menuconfig
+
+run_menuconfig() {
+    export TERM=xterm-256color
+    export LINES=40
+    export COLUMNS=120
+    script -q -c "make -C "$KERNEL_DIR" O="$OUT_DIR" ARCH="$ARCH" menuconfig" /dev/null
+}
+[[ "$menu" =~ ^[Yy]$ ]] && run_menuconfig
 
 # =====================================================================
 # 🔥 Pilih Level Optimasi Polly (FoxeClang)
