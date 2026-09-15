@@ -56,12 +56,21 @@ HOST_OS=$(uname -o)
 HOST_KERNEL=$(uname -r)
 HOST_CPU=$(grep -m1 "model name" /proc/cpuinfo | cut -d: -f2 | sed 's/^ //')
 
+# Toolchain details
+if [ -f "$CLANG_DIR/bin/llvm-profdata" ]; then CLANG_PGO_INFO="✅ PGO (llvm-profdata)"; else CLANG_PGO_INFO="❌ PGO tidak ada"; fi
+if [ -f "$CLANG_DIR/lib/libLTO.so" ] || [ -f "$CLANG_DIR/lib64/libLTO.so" ] || echo "$CLANG_VERSION" | grep -qi "clang"; then CLANG_LTO_INFO="✅ LTO/ThinLTO (ld.lld)"; else CLANG_LTO_INFO="❌ LTO tidak ada"; fi
+if strings "$CLANG_DIR/bin/clang" 2>/dev/null | grep -qi "polly" || ls "$CLANG_DIR"/lib/*Polly* 1>/dev/null 2>&1; then CLANG_POLLY_INFO="✅ Polly (built-in)"; else CLANG_POLLY_INFO="❌ Polly tidak ada"; fi
+if [ -f "$CLANG_DIR/bin/llvm-bolt" ]; then CLANG_BOLT_INFO="✅ BOLT"; else CLANG_BOLT_INFO="❌ BOLT tidak ada"; fi
+
 clear
 echo -e "${MAGENTA}${BOLD}=============================================================="
 echo -e " 💫 Build Script — PORTABLE HYBRID MODE"
 echo -e "==============================================================${RESET}"
 echo -e "${CYAN}👤 Dibuat oleh:${RESET} ${GREEN}Michikoextv2${RESET}"
 echo -e "${YELLOW}🧰 Toolchain:${RESET} ${GREEN}${CLANG_VERSION}${RESET}"
+echo -e "${YELLOW}   ├─ LTO         :${RESET} ${GREEN}${CLANG_LTO_INFO}${RESET}"
+echo -e "${YELLOW}   ├─ PGO         :${RESET} ${GREEN}${CLANG_PGO_INFO}${RESET}"
+echo -e "${YELLOW}   └─ Opt         :${RESET} ${GREEN}${CLANG_POLLY_INFO} | ${CLANG_BOLT_INFO}${RESET}"
 echo -e "${YELLOW}🧠 CPU:${RESET} ${GREEN}${HOST_CPU}${RESET}"
 echo -e "${YELLOW}💻 Host:${RESET} ${GREEN}${HOST_OS} (${HOST_KERNEL})${RESET}"
 echo -e "${MAGENTA}==============================================================${RESET}
