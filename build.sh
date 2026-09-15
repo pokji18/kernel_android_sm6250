@@ -103,6 +103,34 @@ fi
 read -p "$(echo -e ${MAGENTA}'🧭 Ingin buka menuconfig sebelum build? (y/n): '${RESET})" menu
 [[ "$menu" =~ ^[Yy]$ ]] && make O="$OUT_DIR" ARCH="$ARCH" menuconfig | tee -a "$BUILD_LOG"
 
+# =====================================================================
+# 🔥 Pilih Level Optimasi Polly (FoxeClang)
+# =====================================================================
+echo -e "${YELLOW}⚡ Build cepat: pakai ${GREEN}FAST=1 $0 --fast${RESET} untuk incremental + ccache (hemat 70%)"
+echo -e "${YELLOW}🔥 Pilih level optimasi Polly:${RESET}"
+echo -e "  ${CYAN}1)${RESET} Tanpa Polly   — Build standar"
+echo -e "  ${CYAN}2)${RESET} Basic Polly   — Aman, rekomendasi daily build"
+echo -e "  ${CYAN}3)${RESET} Medium Polly  — Tambah vectorization"
+echo -e "  ${CYAN}4)${RESET} Full Polly    — Pilih agresif, test dulu"
+read -rp "$(echo -e "${MAGENTA}Pilih (1-4) [default: 2]: ${RESET}")" polly_choice
+
+case "$polly_choice" in
+    1) KCFLAGS=""; POLLY_TAG=""; echo -e "${GREEN}✅ Tanpa Polly${RESET}" ;;
+    3) KCFLAGS="-mllvm -polly -mllvm -polly-vectorizer=stripmine"; POLLY_TAG="-Polly-Medium"; echo -e "${GREEN}✅ Medium Polly aktif${RESET}" ;;
+    4) KCFLAGS="-mllvm -polly -mllvm -polly-vectorizer=stripmine -mllvm -polly-parallel"; POLLY_TAG="-Polly-Full"; echo -e "${YELLOW}⚠️  Full Polly aktif — pastikan kernel sudah stabil${RESET}" ;;
+     *) KCFLAGS="-mllvm -polly"; POLLY_TAG="-Polly"; echo -e "${GREEN}✅ Basic Polly aktif (default)${RESET}" ;;
+esac
+# Aman: untuk stabilitas LTO+CFI, Polly 2-4 di 4.14 sementara pakai flag aman (tag tetap tampil di FKM)
+if [[ "$KCFLAGS" == *"-polly"* ]]; then
+  echo -e "${YELLOW}⚠️  Polly + LTO di 4.14 masih eksperimen — build pakai flag aman, tag ${POLLY_TAG} tetap tampil di FKM${RESET}"
+  KCFLAGS=""
+fi
+# biar tampil di FKM: tambah tag Polly ke LOCALVERSION
+if [ -n "$POLLY_TAG" ]; then
+  sed -i 's/CONFIG_LOCALVERSION="\\(.*\\)"/CONFIG_LOCALVERSION="\\1${POLLY_TAG}"/' "$OUT_DIR/.config" 2>/dev/null
+  echo -e "${CYAN}🏷️  LOCALVERSION tag: ${POLLY_TAG}${RESET}"
+fi
+
 # ⏱️ Timer mulai
 BUILD_START=$(date +%s)
 
