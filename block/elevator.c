@@ -228,18 +228,9 @@ int elevator_init(struct request_queue *q, char *name)
 	}
 
 	if (!e) {
-		/*
-		 * For blk-mq devices, we default to using kyber,
-		 * if available, for single queue devices. If deadline
-		 * isn't available OR we have multiple queues, default
-		 * to "none".
-		 */
-		if (q->mq_ops) {
-			if (q->nr_hw_queues == 1)
-				e = elevator_get(q, "kyber", false);
-			if (!e)
-				return 0;
-		} else
+		if (q->mq_ops)
+			e = elevator_get(q, CONFIG_DEFAULT_IOSCHED, false);
+		else
 			e = elevator_get(q, CONFIG_DEFAULT_IOSCHED, false);
 
 		if (!e) {
