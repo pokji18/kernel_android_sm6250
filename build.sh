@@ -16,7 +16,7 @@ RESET='\033[0m'; BOLD='\033[1m'
 KERNEL_DIR=$(pwd)
 OUT_DIR="$KERNEL_DIR/out"
 CLANG_DIR="$KERNEL_DIR/../clang"
-GCC32_DIR="$KERNEL_DIR/../arm-linux-androideabi-4.9"
+GCC32_DIR="${GCC32_DIR:-$(realpath "$KERNEL_DIR/../clang/NezukoClang/arm-linux-androideabi-4.9" 2>/dev/null || find /home/nezuko330 -name "arm-linux-androideabi-4.9" -type d 2>/dev/null | head -1)}"
 ARCH="arm64"
 BUILD_LOG="$KERNEL_DIR/build.log"
 DATE=$(date +"%Y-%m-%d_%H-%M")
