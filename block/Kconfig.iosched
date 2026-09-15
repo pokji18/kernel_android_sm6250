@@ -87,9 +87,6 @@ choice
 	config DEFAULT_FIOPS
 		bool "FIOPS" if IOSCHED_FIOPS=y
 
-	config DEFAULT_SSG
-		bool "SSG" if MQ_IOSCHED_SSG=y
-
 	config DEFAULT_SIO
 		bool "SIO" if IOSCHED_SIO=y
 
@@ -104,7 +101,6 @@ config DEFAULT_IOSCHED
 	default "cfq" if DEFAULT_CFQ
 	default "maple" if DEFAULT_MAPLE
 	default "fiops" if DEFAULT_FIOPS
-	default "ssg" if DEFAULT_SSG
 	default "sio" if DEFAULT_SIO
 	default "noop" if DEFAULT_NOOP
 
@@ -122,19 +118,6 @@ config MQ_IOSCHED_KYBER
 	  multiqueue and other fast devices. Given target latencies for reads and
 	  synchronous writes, it will self-tune queue depths to achieve that
 	  goal.
-
-config MQ_IOSCHED_SSG
-	tristate "SamSung Generic I/O scheduler"
-	default n
-	---help---
-	  SamSung Generic IO scheduler.
-
-config MQ_IOSCHED_SSG_CGROUP
-	bool "SSG Control Group support"
-	depends on MQ_IOSCHED_SSG && BLK_CGROUP
-	default y
-	---help---
-	  Control Group for SamSung Generic IO scheduler.
 
 config IOSCHED_BFQ
 	tristate "BFQ I/O scheduler"
