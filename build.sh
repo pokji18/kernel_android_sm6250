@@ -247,7 +247,7 @@ run_menuconfig() {
     export TERM=xterm-256color
     export LINES=40
     export COLUMNS=120
-    script -q -c "make -C "$KERNEL_DIR" O="$OUT_DIR" ARCH="$ARCH" menuconfig" /dev/null
+    make -C "$KERNEL_DIR" O="$OUT_DIR" ARCH="$ARCH" menuconfig
 }
 [[ "$menu" =~ ^[Yy]$ ]] && run_menuconfig
 
