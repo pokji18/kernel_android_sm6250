@@ -49,6 +49,25 @@ if [ ! -f "$CLANG_DIR/bin/clang" ]; then
 fi
 
 # =====================================================================
+# 🧠 Toolchain Info
+# =====================================================================
+CLANG_VERSION=$("$CLANG_DIR/bin/clang" --version | head -n 1)
+HOST_OS=$(uname -o)
+HOST_KERNEL=$(uname -r)
+HOST_CPU=$(grep -m1 "model name" /proc/cpuinfo | cut -d: -f2 | sed 's/^ //')
+
+clear
+echo -e "${MAGENTA}${BOLD}=============================================================="
+echo -e " 💫 Build Script — PORTABLE HYBRID MODE"
+echo -e "==============================================================${RESET}"
+echo -e "${CYAN}👤 Dibuat oleh:${RESET} ${GREEN}Michikoextv2${RESET}"
+echo -e "${YELLOW}🧰 Toolchain:${RESET} ${GREEN}${CLANG_VERSION}${RESET}"
+echo -e "${YELLOW}🧠 CPU:${RESET} ${GREEN}${HOST_CPU}${RESET}"
+echo -e "${YELLOW}💻 Host:${RESET} ${GREEN}${HOST_OS} (${HOST_KERNEL})${RESET}"
+echo -e "${MAGENTA}==============================================================${RESET}
+"
+
+# =====================================================================
 # 🔧 AUTO-DETECT GCC32 (Portable)
 # =====================================================================
 if [ -z "$GCC32_DIR" ] || [ ! -d "$GCC32_DIR/bin" ]; then
