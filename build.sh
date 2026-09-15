@@ -155,6 +155,10 @@ fi
 # ⏱️ Mulai Build
 # =====================================================================
 BUILD_START=$(date +%s)
+# Set build identity
+export KBUILD_BUILD_HOST=Kimochh
+export KBUILD_BUILD_USER=Nezuko
+
 echo -e "\n${CYAN}🚀 Memulai proses build kernel dengan ${CPU_CORES} core...${RESET}"
 
 make -j"$CPU_CORES" \
