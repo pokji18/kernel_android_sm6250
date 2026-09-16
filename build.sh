@@ -93,6 +93,13 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# 🧩 Paksa aktifkan fitur portan (ZSTD v1.5.7, LZ4 v1.10, f2fs compression)
+for CFG in CRYPTO_ZSTD F2FS_FS_COMPRESSION F2FS_FS_LZ4 F2FS_FS_ZSTD; do
+    scripts/config --file "$OUT_DIR/.config" -e "$CFG" &>/dev/null
+done
+make O="$OUT_DIR" ARCH="$ARCH" olddefconfig &>/dev/null
+echo -e "${GREEN}✅ Fitur aktif: ZSTD v1.5.7, LZ4 v1.10, f2fs compression${RESET}"
+
 # 🧭 Menuconfig opsional
 read -p "$(echo -e ${MAGENTA}'🧭 Ingin buka menuconfig sebelum build? (y/n): '${RESET})" menu
 [[ "$menu" =~ ^[Yy]$ ]] && make O="$OUT_DIR" ARCH="$ARCH" menuconfig | tee -a "$BUILD_LOG"
