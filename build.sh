@@ -97,17 +97,40 @@ fi
 read -p "$(echo -e ${MAGENTA}'🧭 Ingin buka menuconfig sebelum build? (y/n): '${RESET})" menu
 [[ "$menu" =~ ^[Yy]$ ]] && make O="$OUT_DIR" ARCH="$ARCH" menuconfig | tee -a "$BUILD_LOG"
 
-# 🔧 Polly (LLVM optimizer — eksperimen di 4.14 + LTO)
-read -p "$(echo -e ${MAGENTA}'🔧 Aktifkan Polly optimizer? (y/n): '${RESET})" polly_answer
+# 🔧 Polly (LLVM polyhedral optimizer) — pilih level 1-4
+echo -e "\n${MAGENTA}🔧 Pilih level Polly optimizer:${RESET}"
+PS3="$(echo -e ${MAGENTA}'Pilihan [1-4]: '${RESET})"
 KCFLAGS=""
 POLLY_TAG=""
-if [[ "$polly_answer" =~ ^[Yy]$ ]]; then
-    KCFLAGS="-mllvm -polly"
-    POLLY_TAG="-Polly"
-    echo -e "${GREEN}✅ Polly aktif${RESET}"
-else
-    echo -e "${YELLOW}⏩ Tanpa Polly${RESET}"
-fi
+select polly_choice in \
+    "Tanpa Polly" \
+    "Polly dasar (-mllvm -polly)" \
+    "Polly + Stripmine (-mllvm -polly-vectorizer=stripmine)" \
+    "Polly Full (+ -mllvm -polly-tiling -mllvm -polly-process-unprofitable)"; do
+    case "$polly_choice" in
+        "Tanpa Polly"*)
+            KCFLAGS=""; POLLY_TAG=""
+            echo -e "${YELLOW}⏩ Tanpa Polly${RESET}"
+            ;;
+        "Polly dasar"*)
+            KCFLAGS="-mllvm -polly"; POLLY_TAG="-Polly"
+            echo -e "${GREEN}✅ Polly dasar aktif${RESET}"
+            ;;
+        "Polly + Stripmine"*)
+            KCFLAGS="-mllvm -polly -mllvm -polly-vectorizer=stripmine"; POLLY_TAG="-PollySM"
+            echo -e "${GREEN}✅ Polly + Stripmine aktif${RESET}"
+            ;;
+        "Polly Full"*)
+            KCFLAGS="-mllvm -polly -mllvm -polly-vectorizer=stripmine -mllvm -polly-tiling -mllvm -polly-process-unprofitable"; POLLY_TAG="-PollyFull"
+            echo -e "${GREEN}✅ Polly Full aktif${RESET}"
+            ;;
+        *)
+            echo -e "${RED}❌ Pilihan tidak valid, coba lagi.${RESET}"
+            continue
+            ;;
+    esac
+    break
+done
 
 if [ -n "$POLLY_TAG" ]; then
     sed -i "s/CONFIG_LOCALVERSION=\"\(.*\)\"/CONFIG_LOCALVERSION=\"\1${POLLY_TAG}\"/" "$OUT_DIR/.config" 2>/dev/null
